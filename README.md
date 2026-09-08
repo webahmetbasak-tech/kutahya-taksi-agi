@@ -11,7 +11,8 @@ tıkladığını görür.
 - Mimari kararlar ve gerekçeleri: [ARCHITECTURE.md](./ARCHITECTURE.md)
 - Faz planı, riskler ve durum: [PROJECT_PLAN.md](./PROJECT_PLAN.md)
 
-**Durum:** FAZ 1 (Project Foundation) tamamlandı. Supabase henüz bağlı değil (FAZ 2).
+**Durum:** FAZ 2 (Supabase Foundation) tamamlandı. Şema, RLS ve veri katmanı hazır;
+public sayfalar henüz gerçek veri göstermiyor (FAZ 3).
 
 ---
 
@@ -50,14 +51,14 @@ npm start               # http://localhost:4200
 
 `.env` git'e **girmez**. Şablon için [`.env.example`](./.env.example).
 
-| Değişken                    | Zorunlu                 | Açıklama                                                                           |
-| --------------------------- | ----------------------- | ---------------------------------------------------------------------------------- |
-| `SUPABASE_URL`              | FAZ 2'den sonra         | Supabase proje adresi                                                              |
-| `SUPABASE_ANON_KEY`         | FAZ 2'den sonra         | Public anon anahtar — bundle'a girer, bu normaldir (güvenlik RLS'te)               |
-| `SUPABASE_SERVICE_ROLE_KEY` | hayır                   | **Yalnızca** lokal script/CI. Client'a asla girmez, `generate-env` bunu hiç okumaz |
-| `SITE_URL`                  | production'da **evet**  | Canonical/sitemap/OG için mutlak taban adres, sonunda `/` yok                      |
-| `ENVIRONMENT`               | hayır                   | `development` \| `preview` \| `production`                                         |
-| `NG_ALLOWED_HOSTS`          | özel domain'de **evet** | SSR host doğrulaması — aşağıya bakın                                               |
+| Değişken                    | Zorunlu                 | Açıklama                                                                                                    |
+| --------------------------- | ----------------------- | ----------------------------------------------------------------------------------------------------------- |
+| `SUPABASE_URL`              | **evet**                | Supabase proje adresi                                                                                       |
+| `SUPABASE_ANON_KEY`         | **evet**                | Public anahtar (`sb_publishable_...` veya eski `anon` JWT) — bundle'a girer, bu normaldir (güvenlik RLS'te) |
+| `SUPABASE_SERVICE_ROLE_KEY` | hayır                   | **Yalnızca** lokal script/CI. Client'a asla girmez, `generate-env` bunu hiç okumaz                          |
+| `SITE_URL`                  | production'da **evet**  | Canonical/sitemap/OG için mutlak taban adres, sonunda `/` yok                                               |
+| `ENVIRONMENT`               | hayır                   | `development` \| `preview` \| `production`                                                                  |
+| `NG_ALLOWED_HOSTS`          | özel domain'de **evet** | SSR host doğrulaması — aşağıya bakın                                                                        |
 
 ### İki tuzak
 
@@ -89,6 +90,47 @@ NG_ALLOWED_HOSTS=localhost npm run serve:ssr
 | `npm run lint` / `lint:fix`       | ESLint                                               |
 | `npm run format` / `format:check` | Prettier                                             |
 | `npm run env:generate`            | `.env` → `src/environments/environment.generated.ts` |
+| `npm run db:push`                 | Migration'ları bağlı Supabase projesine uygular      |
+| `npm run db:types`                | Şemadan `database.types.ts` üretir                   |
+| `npm run db:test-rls`             | RLS güvenlik testleri (aşağıya bakın)                |
+
+---
+
+## Supabase
+
+Proje: **kutahyataksi** (`ierfpvxzknfoyubpnzws`, eu-west-1). Şema `supabase/migrations/`'da
+7 dosya halinde tanımlı — tablolar, enum'lar, index'ler, fonksiyonlar/trigger'lar, **RLS
+policy'leri**, Storage bucket'ı ve referans verisi (kategori/hizmet/lokasyon; işletme verisi
+YOK — bkz. "Veri ilkesi" aşağıda).
+
+```bash
+npx supabase link --project-ref ierfpvxzknfoyubpnzws   # bir kere
+npm run db:push                                        # migration uygula
+npm run db:types                                        # TS tiplerini yenile
+```
+
+### RLS testleri
+
+RLS bu projenin güvenlik sınırıdır — anon anahtar client bundle'a girdiği için saldırganın
+elinde olan tam olarak odur. `scripts/rls-test.mjs`, gerçek uzak veritabanına karşı anon
+anahtarla neyin okunup yazılamadığını doğrular (referans veri okunabiliyor mu, `profiles`/
+`claims`/`analytics_events` okunuyor mu, doğrudan `businesses` insert edilebiliyor mu, vb.):
+
+```bash
+npm run db:test-rls
+```
+
+`SUPABASE_SERVICE_ROLE_KEY` `.env`'de tanımlıysa fixture testleri de çalışır (pending/suspended
+bir işletme oluşturup anon'un gerçekten göremediğini kanıtlar, sonra temizler). Tanımlı değilse
+bu testler sessizce "geçti" denmez — açıkça "atlandı" olarak raporlanır.
+
+### Veri katmanı
+
+Public sayfalar `supabase-js` **kullanmaz** — Supabase'in PostgREST arayüzüne doğrudan
+`HttpClient` ile gidilir (`core/data/postgrest.client.ts`). Neden: `provideClientHydration`'ın
+transfer cache'i yalnızca `HttpClient` trafiğini yakalar; `supabase-js` kendi `fetch`'ini
+kullandığından sunucuda çekilen veri hydration'da ikinci kez çekilirdi. `supabase-js` yalnızca
+auth/dashboard/admin gibi lazy chunk'larda kullanılacak (Faz 7+). Ayrıntı: ARCHITECTURE.md §4.
 
 ---
 
@@ -96,12 +138,13 @@ NG_ALLOWED_HOSTS=localhost npm run serve:ssr
 
 ```
 src/app/
-  core/       config, errors  (ileride: data, supabase, seo, schema, analytics, guards)
+  core/       config, errors, data (postgrest client + repository'ler)  (ileride: supabase, seo, schema, analytics, guards)
   shared/     layout (header/footer), ui (spinner, skeleton, empty-state)
   features/   home, taxis, taxi-detail, business-submit, legal, dashboard, not-found
 src/styles/   tokens.css, reset.css
 src/environments/  ortam modeli + üretilen dosya (gitignore'da)
-scripts/      generate-env.mjs
+scripts/      generate-env.mjs, rls-test.mjs
+supabase/     migrations/ (şema + RLS + referans verisi), config.toml
 api/          Vercel serverless adapter
 ```
 

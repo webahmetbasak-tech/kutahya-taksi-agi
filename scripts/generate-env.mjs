@@ -74,8 +74,13 @@ if (production && (!supabaseUrl || !supabaseAnonKey)) {
   console.warn('[generate-env] UYARI: production build ama SUPABASE_URL/ANON_KEY boş.');
 }
 
-if (/service_role/i.test(supabaseAnonKey)) {
-  console.error('\n[generate-env] HATA: SUPABASE_ANON_KEY alanına service_role anahtarı konmuş.\n');
+// Gizli anahtarın client bundle'a girmesi bu projedeki en pahalı hatalardan biri
+// olurdu. Hem eski (`service_role` JWT) hem yeni (`sb_secret_...`) formatı yakalanır.
+if (/service_role/i.test(supabaseAnonKey) || supabaseAnonKey.startsWith('sb_secret_')) {
+  console.error(
+    '\n[generate-env] HATA: SUPABASE_ANON_KEY alanına GİZLİ anahtar konmuş.\n' +
+      'Buraya yalnızca public anahtar gelir (`sb_publishable_...` veya anon JWT).\n',
+  );
   process.exit(1);
 }
 

@@ -1,7 +1,7 @@
 # PROJECT_PLAN.md — Kütahya Taksi Ağı
 
-> Durum: **FAZ 1 tamamlandı.** Sıradaki: FAZ 2 — Supabase Foundation.
-> Son güncelleme: 8 Eylül 2026
+> Durum: **FAZ 2 tamamlandı.** Sıradaki: FAZ 3 — Public Website.
+> Son güncelleme: 9 Eylül 2026
 
 Mimari kararlar ve gerekçeleri için: [ARCHITECTURE.md](./ARCHITECTURE.md)
 
@@ -132,14 +132,14 @@ Angular 22 workspace (SSR açık, zoneless), feature klasör iskeleti, routing, 
 
 **DoD durumu:**
 
-| Kriter | Durum |
-|---|---|
-| `npm run build` temiz | ✅ initial **84.21 kB gzip** (bütçe 120 kB) |
-| Lint temiz | ✅ |
-| Testler | ✅ 11/11 |
-| 404 gerçek HTTP 404 dönüyor | ✅ |
-| **SSR kanıtı (R3)** | ✅ **lokal** — rastgele slug istek anında render ediliyor |
-| Vercel'de canlı URL | ⏳ hesap/domain bağlandığında |
+| Kriter                      | Durum                                                     |
+| --------------------------- | --------------------------------------------------------- |
+| `npm run build` temiz       | ✅ initial **84.21 kB gzip** (bütçe 120 kB)               |
+| Lint temiz                  | ✅                                                        |
+| Testler                     | ✅ 11/11                                                  |
+| 404 gerçek HTTP 404 dönüyor | ✅                                                        |
+| **SSR kanıtı (R3)**         | ✅ **lokal** — rastgele slug istek anında render ediliyor |
+| Vercel'de canlı URL         | ⏳ hesap/domain bağlandığında                             |
 
 **SSR kanıtı nasıl alındı:** `curl /taksi/deneme-slug-12345` sunucu HTML'inde slug'ı
 döndürdü. Prerender edilmiş bir sayfa bunu üretemez, dolayısıyla SSR istek anında
@@ -153,14 +153,66 @@ boştur. İlk lokal testte site komple 400 verdi. `src/server.ts` artık host li
 bağlandığında `NG_ALLOWED_HOSTS` tanımlanmazsa site tamamen erişilemez olur** —
 Faz 12 kontrol listesine eklendi.
 
-### FAZ 2 — Supabase Foundation
+### FAZ 2 — Supabase Foundation ✅ TAMAMLANDI
 
-Supabase projesi, migration'lar (tüm tablolar/enum/index/FK), RLS policy'leri, `is_admin()`,
-Storage bucket'ları, Auth ayarları, seed script iskeleti, `landing_pages` view'ı.
+Proje: **kutahyataksi** (`ierfpvxzknfoyubpnzws`, eu-west-1, Postgres 17.6). CLI ile linklendi,
+7 migration `db push` ile temiz uygulandı. Tablolar/enum/index/FK/trigger/RLS/Storage/referans
+verisi hepsi migration olarak `supabase/migrations/`'da — elle panelden tıklanan hiçbir şey yok.
 
-**DoD:** migration'lar sıfırdan temiz uygulanıyor · **RLS testleri geçiyor** (anon pending
-işletme göremez; owner başkasının kaydını yazamaz; owner `status` değiştiremez; anon
-`analytics_events` okuyamaz) · Storage policy testleri geçiyor.
+**DoD durumu:**
+
+| Kriter                                                          | Durum                                                          |
+| --------------------------------------------------------------- | -------------------------------------------------------------- |
+| Migration'lar sıfırdan temiz uygulanıyor                        | ✅ 7/7, `supabase db push`                                     |
+| RLS testleri geçiyor                                            | ✅ **19/19** anon testi (`npm run db:test-rls`)                |
+| Storage policy'leri var                                         | ✅ yazıldı, uygulandı — **testi Faz 3'te fotoğraf yüklenince** |
+| Fixture testleri (pending/suspended görünürlük, kısıt testleri) | ⏳ `SUPABASE_SERVICE_ROLE_KEY` bekliyor                        |
+
+**Uygulanan şema:**
+
+- Enum'lar: `business_status`, `verification_status`, `source_type`, `location_type`,
+  `claim_status`, `verification_method`, `user_role`, `review_status`, `media_type`,
+  `business_plan`, `analytics_event_type`.
+- Tablolar: `categories`, `profiles`, `services`, `locations`, `businesses`,
+  `business_slug_history`, `business_services`, `business_locations`, `business_hours`,
+  `business_media`, `claims`, `reviews`, `landing_pages`, `analytics_events`, `analytics_daily`.
+- Fonksiyonlar: `is_admin()` (RLS özyinelemesini kırar), `normalize_name()` (duplicate tespiti),
+  `normalize_tr_phone()` (§53 — tanınmayan biçimde NULL döner, uydurmaz), `set_updated_at()`,
+  `handle_new_user()` (auth.users → profiles), `protect_profile_role()`,
+  `protect_business_admin_columns()` (owner `status`/`plan`/`verification_status`/`owner_id`
+  değiştiremez — RLS'e ek ikinci katman), `record_business_slug_change()` (§64),
+  `apply_approved_claim()` (claim onayı → owner_id + verification_status tek işlemde),
+  `rollup_analytics_daily()`, `prune_analytics_events()` (90 gün, §56).
+- View: `landing_page_stats` — gerçek aktif işletme sayısını hesaplar, eşiğin altındaki sayfa
+  `is_indexable=false` döner (§31 thin content kapısı, yapısal — kod değil veritabanı kuralı).
+- Storage: `business-media` bucket (public read, 5MB, yalnızca resim), owner-scoped yazma.
+
+**RLS testleri neyi kanıtladı (`scripts/rls-test.mjs`, 19/19 anon):** anon referans veriyi
+okuyabiliyor; profiles/claims/analytics_events/analytics_daily'yi **okuyamıyor**; hiçbir tabloya
+doğrudan insert/update/delete **yapamıyor**; analytics event'i yalnızca **aktif** işletme için
+ve yalnızca **tanımlı** `event_type` ile yazabiliyor ama yazdığını **geri okuyamıyor**.
+
+**Uygulama katmanı da bu fazda kuruldu** (ARCHITECTURE.md §4 kararının kod karşılığı):
+`core/data/postgrest.client.ts` (`HttpClient` üzerinden PostgREST — `supabase-js` public
+yolda kullanılmıyor), `business.repository.ts`, `location.repository.ts`,
+`service.repository.ts`, Supabase CLI'dan üretilen `database.types.ts`
+(`npm run db:types`) ve ondan türetilen `models.ts`. 6 yeni test (17/17 toplam).
+
+**Referans verisi (migration, "test seed'i" değil):** 1 kategori (taksi), 6 hizmet, 1 il +
+13 ilçe + 4 önemli nokta (Zafer Havalimanı/IATA KZR, otogar, 2 üniversite yerleşkesi) — hepsi
+OpenStreetMap'ten (ODbL) doğrulandı, hiçbir koordinat tahmin edilmedi. 6 landing page tanımı
+`is_published=false` ile eklendi; içerik gerçek işletme verisi olmadan yazılmadı (§74).
+**`/kutahya-taksi` bilerek eklenmedi** — `/taksi` ile canonical çakışması riski, karar Faz 4'te.
+
+**Faz 2'de ortaya çıkan bulgu — anon anahtar biçimi değişmiş:** Supabase artık yeni
+`sb_publishable_...` / `sb_secret_...` formatını kullanıyor (eski JWT tabanlı `anon`/
+`service_role` yerine). `generate-env.mjs`'deki gizli-anahtar-sızıntısı koruması hem eski
+hem yeni formatı tanıyacak şekilde güncellendi.
+
+**Açık kalan:** `SUPABASE_SERVICE_ROLE_KEY` henüz verilmedi, bu yüzden fixture testleri
+(pending/suspended işletmenin gerçekten gizlendiğinin uçtan uca kanıtı, slug/telefon format
+kısıtlarının reddedildiğinin kanıtı) **atlandı** — script bunu sessizce "geçti" demek yerine
+açıkça "atlandı" olarak raporluyor. Anahtar verilince `npm run db:test-rls` ile tamamlanacak.
 
 ### FAZ 3 — Public Website
 

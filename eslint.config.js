@@ -10,6 +10,8 @@ module.exports = tseslint.config(
       '.angular/**',
       'node_modules/**',
       'src/environments/environment.generated.ts',
+      // Supabase CLI uretir; kendi stil kurallarimiz buna uygulanmaz.
+      'src/app/core/data/database.types.ts',
     ],
   },
   {

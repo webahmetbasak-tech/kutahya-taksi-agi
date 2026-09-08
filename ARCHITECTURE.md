@@ -173,6 +173,13 @@ Headers: apikey: <anon>, Authorization: Bearer <anon>
 3. **Cache kontrolü.** HttpClient interceptor ile public sorgulara tek noktadan cache header /
    retry / hata yönetimi uygulanabilir.
 
+**Faz 2'de uygulandı:** `core/data/postgrest.client.ts` (ince `HttpClient` sarmalayıcı),
+`business.repository.ts`, `location.repository.ts`, `service.repository.ts`. Repository'ler
+`status='active'` filtresini KENDİLERİ eklemiyor — RLS zaten yalnızca aktif işletmeyi döndürür;
+filtreyi iki yerde tutmak ileride sessiz tutarsızlık üretirdi. Tipler elle yazılmıyor,
+`npm run db:types` ile Supabase şemasından üretiliyor (`database.types.ts`), `models.ts` bunlardan
+türetiyor — şema değişince derleme hatası alınır, sessiz uyuşmazlık olmaz.
+
 ### `supabase-js` nerede kullanılacak?
 
 Yalnızca **lazy-loaded** `auth`, `dashboard`, `admin`, `claim` feature'larında — Auth (session
@@ -247,7 +254,13 @@ src/
 
 ## 6. Veritabanı Şeması
 
-PostgreSQL 15+ (Supabase). Uzantılar: `pgcrypto`, `postgis`, `pg_trgm`, `unaccent`.
+> **Durum: Faz 2'de uygulandı.** Proje `kutahyataksi` (`ierfpvxzknfoyubpnzws`, eu-west-1,
+> Postgres 17.6). Aşağıdaki şema `supabase/migrations/`'da 7 migration dosyası halinde yaşıyor
+> ve `supabase db push` ile temiz uygulandı — burada tasarım niyeti kalıcı olarak dursun diye
+> tekrarlanıyor, ama tek doğruluk kaynağı migration dosyalarıdır.
+
+PostgreSQL 17 (Supabase). Uzantılar: `pgcrypto`, `postgis`, `pg_trgm`, `unaccent`
+(hepsi `extensions` şemasına kurulu — Supabase konvansiyonu, kod `extensions.` ile nitelenir).
 
 ### Enum'lar
 
@@ -509,10 +522,15 @@ zaman yeniden üretir. Kod her zaman `@env` üzerinden import eder.
 
 `service_role` anahtarı bu script tarafından **hiç okunmaz** — client'a sızmamasının
 tek güvenilir yolu onu bu yola hiç sokmamaktır. Script ayrıca anon key alanına
-yanlışlıkla service_role konursa build'i durdurur.
+yanlışlıkla gizli anahtar konursa build'i durdurur.
 
 **`SITE_URL` production'da boşsa build bilerek durur.** Canonical/sitemap/OG mutlak URL
 gerektirir; `localhost` yazmak sessiz bir indeksleme felaketi olurdu.
+
+**Faz 2'de öğrenildi — Supabase anahtar formatı değişti.** Proje yeni `sb_publishable_...`
+(public) / `sb_secret_...` (gizli) formatını kullanıyor; eski JWT tabanlı `anon`/`service_role`
+adlandırması hâlâ geçerli ama yeni projelerde bu prefix'ler görülüyor. `generate-env.mjs`'deki
+sızıntı koruması ikisini de tanır (`service_role` metnini VEYA `sb_secret_` önekini yakalar).
 
 ---
 
