@@ -5,11 +5,8 @@
  * gerektirmez. `server.ts` içinde Angular'dan ÖNCE, düz bir Express route
  * olarak sunulur. Saf fonksiyonlar burada tutulur ki DOM/Angular olmadan
  * test edilebilsinler (bkz. `sitemap.spec.ts`).
- *
- * VERİ ERİŞİMİ: PostgREST'e anon anahtarla gidilir — service_role KULLANILMAZ.
- * Sitemap yalnızca zaten PUBLIC olan veriyi listeler (RLS'in anon'a gösterdiği
- * her şey); service_role gerekmediği için burada da yok (ARCHITECTURE.md §14).
  */
+import { absoluteUrl, fetchRows, type PostgrestFetchConfig } from './postgrest-fetch';
 
 export interface SitemapUrl {
   loc: string;
@@ -17,11 +14,7 @@ export interface SitemapUrl {
   lastmod?: string;
 }
 
-export interface SitemapConfig {
-  siteUrl: string;
-  supabaseUrl: string;
-  supabaseAnonKey: string;
-}
+export type SitemapConfig = PostgrestFetchConfig;
 
 /**
  * Veriden bağımsız, her zaman var olan sayfalar. `/isletme-ekle`, `/panel`
@@ -30,10 +23,6 @@ export interface SitemapConfig {
  * sayfalar değil.
  */
 const STATIC_PATHS = ['/', '/taksi', '/bolge', '/hizmet', '/hakkinda', '/gizlilik'] as const;
-
-function absoluteUrl(siteUrl: string, path: string): string {
-  return `${siteUrl}${path === '/' ? '' : path}`;
-}
 
 function escapeXml(value: string): string {
   return value
@@ -56,10 +45,39 @@ export function buildSitemapXml(urls: readonly SitemapUrl[]): string {
 }
 
 /**
- * §35: hiçbir crawler varsayılan olarak körlemesine engellenmez. Bot bazlı
- * ince ayar (arama/erişim botlarını ayırmak vb.) Faz 5'te güncel resmî
- * dokümantasyonla doğrulanarak eklenecek.
+ * AI crawler politikası (§35, Faz 5'te birincil kaynaklardan doğrulandı — bkz.
+ * PROJECT_PLAN.md Faz 5 notu). İki kategori:
  *
+ * ARAMA/ERİŞİM BOTLARI — gerçek zamanlı arama/kullanıcı sorgusu, davranışımız
+ * doğrudan "bulunabilirlik" hedefiyle örtüşür:
+ *   - OAI-SearchBot, ChatGPT-User (OpenAI)
+ *   - Claude-SearchBot, Claude-User (Anthropic)
+ *   - PerplexityBot, Perplexity-User (Perplexity — User varyantı robots.txt'i
+ *     zaten dikkate almadığını kendi dokümantasyonunda belirtiyor, yine de
+ *     niyetimizi açıkça belirtmek için satır ekleniyor)
+ *
+ * EĞİTİM/MODEL BOTLARI — bir temel modelin eğitim külliyatına dahil olma;
+ * bulunabilirlikle DOĞRUDAN ilgili değil (Google kendi dokümantasyonunda
+ * Google-Extended'in Arama sıralamasını ETKİLEMEDİĞİNİ açıkça belirtiyor):
+ *   - GPTBot (OpenAI), ClaudeBot (Anthropic), Google-Extended (Google/Gemini)
+ *
+ * KARAR: ikisi de **allow** — hedef görünürlük (§38) ve projenin "kapatmak
+ * için özel bir nedenimiz yok" duruşu. Hiçbiri sıralama/görünürlük GARANTİSİ
+ * anlamına gelmez (§73, §77).
+ */
+const AI_CRAWLER_USER_AGENTS = [
+  'GPTBot',
+  'OAI-SearchBot',
+  'ChatGPT-User',
+  'ClaudeBot',
+  'Claude-User',
+  'Claude-SearchBot',
+  'Google-Extended',
+  'PerplexityBot',
+  'Perplexity-User',
+] as const;
+
+/**
  * Production DIŞI ortamlar (preview/development) HER ZAMAN tamamen kapalıdır
  * — bu, `app.ts`'teki `noindex` meta etiketinin robots.txt seviyesindeki
  * eşleniğidir; aynı güvenlik ağı iki katmanda da var.
@@ -68,31 +86,15 @@ export function buildRobotsTxt(options: { production: boolean; siteUrl: string }
   if (!options.production) {
     return 'User-agent: *\nDisallow: /\n';
   }
-  return `User-agent: *\nAllow: /\n\nSitemap: ${options.siteUrl}/sitemap.xml\n`;
+
+  const aiBlocks = AI_CRAWLER_USER_AGENTS.map((ua) => `User-agent: ${ua}\nAllow: /`).join('\n\n');
+
+  return `User-agent: *\nAllow: /\n\n${aiBlocks}\n\nSitemap: ${options.siteUrl}/sitemap.xml\n`;
 }
 
-interface PostgrestRow {
+interface SlugRow {
   slug: string;
   updated_at?: string;
-}
-
-async function fetchRows(
-  config: SitemapConfig,
-  path: string,
-  fetchFn: typeof fetch,
-): Promise<PostgrestRow[]> {
-  const res = await fetchFn(`${config.supabaseUrl}/rest/v1/${path}`, {
-    headers: {
-      apikey: config.supabaseAnonKey,
-      Authorization: `Bearer ${config.supabaseAnonKey}`,
-    },
-  });
-
-  if (!res.ok) {
-    throw new Error(`Sitemap veri isteği başarısız: ${path} -> HTTP ${res.status}`);
-  }
-
-  return (await res.json()) as PostgrestRow[];
 }
 
 /**
@@ -115,15 +117,15 @@ export async function fetchSitemapUrls(
   }));
 
   const [businesses, districts, landmarks, services, landingPages] = await Promise.all([
-    fetchRows(config, 'businesses?select=slug,updated_at&status=eq.active', fetchFn),
-    fetchRows(config, 'locations?select=slug&type=eq.district', fetchFn),
-    fetchRows(
+    fetchRows<SlugRow>(config, 'businesses?select=slug,updated_at&status=eq.active', fetchFn),
+    fetchRows<SlugRow>(config, 'locations?select=slug&type=eq.district', fetchFn),
+    fetchRows<SlugRow>(
       config,
       'locations?select=slug&type=in.(landmark,airport,bus_station,university,hospital)',
       fetchFn,
     ),
-    fetchRows(config, 'services?select=slug&is_active=eq.true', fetchFn),
-    fetchRows(config, 'landing_page_stats?select=slug&is_indexable=eq.true', fetchFn),
+    fetchRows<SlugRow>(config, 'services?select=slug&is_active=eq.true', fetchFn),
+    fetchRows<SlugRow>(config, 'landing_page_stats?select=slug&is_indexable=eq.true', fetchFn),
   ]);
 
   for (const b of businesses) {

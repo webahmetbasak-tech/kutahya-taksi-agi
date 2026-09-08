@@ -8,6 +8,7 @@ import express from 'express';
 import { join } from 'node:path';
 import { environment } from './environments/environment';
 import { buildRobotsTxt, buildSitemapXml, fetchSitemapUrls } from './seo/sitemap';
+import { buildLlmsTxt, fetchLlmsTxtData } from './seo/llms-txt';
 
 const browserDistFolder = join(import.meta.dirname, '../browser');
 
@@ -89,6 +90,27 @@ app.get('/sitemap.xml', async (_req, res, next) => {
   } catch (error) {
     // Sitemap üretilemezse sessizce boş dönmüyoruz — hata loglanır, 500 döner.
     console.error('[sitemap] üretim hatası:', error);
+    next(error);
+  }
+});
+
+/**
+ * `/llms.txt` (§40) — AI ajanlarının site yapısını anlaması için önerilen,
+ * ama RESMİ OLMAYAN bir konvansiyon. Görünürlük garantisi DEĞİLDİR (§38, §73).
+ */
+app.get('/llms.txt', async (_req, res, next) => {
+  try {
+    const data = await fetchLlmsTxtData({
+      siteUrl: environment.siteUrl,
+      supabaseUrl: environment.supabaseUrl,
+      supabaseAnonKey: environment.supabaseAnonKey,
+    });
+    res
+      .type('text/plain')
+      .set('Cache-Control', 'public, max-age=0, s-maxage=1800, stale-while-revalidate=86400')
+      .send(buildLlmsTxt(data));
+  } catch (error) {
+    console.error('[llms.txt] üretim hatası:', error);
     next(error);
   }
 });

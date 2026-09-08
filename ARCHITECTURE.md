@@ -1,6 +1,6 @@
 # ARCHITECTURE.md — Kütahya Taksi Ağı
 
-> Durum: **FAZ 4 tamamlandı.** Bu belge mimari kararları ve gerekçelerini içerir; her fazda
+> Durum: **FAZ 5 tamamlandı.** Bu belge mimari kararları ve gerekçelerini içerir; her fazda
 > güncellenir. Güncel faz durumu için: [PROJECT_PLAN.md](./PROJECT_PLAN.md)
 > Son güncelleme: 9 Eylül 2026
 
@@ -514,17 +514,34 @@ Faz 4 migration'ı) ile TEK sorguda ayrıştırılır ve `taxi-detail-page.ts`'t
 
 ## 10. GEO / AI Katmanı
 
-- Kritik içerik **server-rendered HTML'de** bulunur; JS ile gizlenmez (§39).
-- `/llms.txt` — sunucu route'u, veritabanından üretilir; site tanımı + ana sayfalar + aktif
-  işletme profilleri. Görünürlük garantisi olarak **değerlendirilmez** (§40).
-- Güven sinyalleri yalnızca doğruysa render edilir (§41):
-  - `last_verified_at` → "Son doğrulama: 8 Eylül 2026"
+> **Durum: Faz 5'te uygulandı.**
+
+- Kritik içerik **server-rendered HTML'de** bulunur; JS ile gizlenmez (§39). Bu, Faz 1'den
+  beri her fazın `curl` tabanlı smoke testleriyle (JS hiç çalıştırılmadan) doğrulana geldi —
+  Faz 5'e özel yeni bir mekanizma değil, zaten var olan bir mimari özelliğin denetimi.
+- `/llms.txt` — `server.ts`'te Angular'dan önce tanımlı düz bir Express route'u
+  (`src/seo/llms-txt.ts`, `sitemap.ts` ile aynı desen — saf fonksiyonlar + anon PostgREST okuma).
+  Site tanımı + ana sayfalar + **gerçek** bölge/hizmet/aktif işletme listesi. Boş bölümler
+  sessizce atlanmaz, "henüz yayınlanmış içerik yok" yazar (§74, R1 ile dürüst). Görünürlük
+  garantisi olarak **değerlendirilmez** (§40) — dosyanın kendi metninde de bu açıkça yazılı.
+- AI crawler politikası **birincil kaynaklardan doğrulandı** (OpenAI/Anthropic/Google/Perplexity'nin
+  kendi dokümantasyonu — bkz. PROJECT_PLAN.md Faz 5). `robots.txt` artık her arama/erişim botu
+  (OAI-SearchBot, ChatGPT-User, Claude-SearchBot, Claude-User, PerplexityBot, Perplexity-User) VE
+  her eğitim botu (GPTBot, ClaudeBot, Google-Extended) için AYRI, açık `Allow: /` satırı taşıyor —
+  `User-agent: *` zaten hepsini kapsasa da, bu açıklık niyeti denetlenebilir kılıyor.
+- Güven sinyalleri yalnızca doğruysa render edilir (§41) — Faz 3'te uygulandı, Faz 5'te değişmedi:
+  - `last_verified_at` → "Doğrulandı — 8 Eylül 2026"
   - `verification_status='owner_claimed'` → "İşletme sahibi tarafından doğrulandı"
   - `source_type` → "Kaynak: kamuya açık durak bilgisi"
 
   Üçü de **veriden** gelir; şablonda sabit metin yoktur.
 
-- Entity ilişkileri hem HTML linki hem `areaServed` / `sameAs` ile ifade edilir (§42).
+- **Entity ilişkileri iki yönlü.** Bölge/hizmet sayfaları zaten işletmelere link veriyordu
+  (Faz 3); Faz 5'te eksik olan TERS yön eklendi — işletme detay sayfası artık kendi
+  `business_services`/`business_locations` ilişkilerini okuyup `/hizmet/:slug` ve `/bolge/:slug`
+  sayfalarına GERİ link veriyor (§42'nin "Zümrüt Taksi → Kütahya Merkez → 7/24 Taksi" zinciri artık
+  gerçekten tam). `taxi-detail-page.spec.ts` bir işletmenin gerçek hizmet/bölge linklerini
+  render ettiğini doğruluyor.
 
 ---
 

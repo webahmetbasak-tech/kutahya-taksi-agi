@@ -1,5 +1,5 @@
 import { inject, Injectable } from '@angular/core';
-import type { Observable } from 'rxjs';
+import { map, type Observable } from 'rxjs';
 import { PostgrestClient } from './postgrest.client';
 import type { LocationRow } from './models';
 
@@ -39,5 +39,19 @@ export class LocationRepository {
       select: LOCATION_FIELDS,
       slug: `eq.${slug}`,
     });
+  }
+
+  /**
+   * Bir işletmenin hizmet verdiği bölgeler (§42 entity ilişkileri —
+   * "Zümrüt Taksi → Kütahya Merkez" yönü). Detay sayfasının kendi bölge/hizmet
+   * varlıklarına GERİ link vermesi için; `business_locations` üzerinden embed.
+   */
+  forBusiness(businessId: string): Observable<LocationRow[]> {
+    return this.client
+      .list<{ location: LocationRow }>('business_locations', {
+        select: `location:locations(${LOCATION_FIELDS})`,
+        business_id: `eq.${businessId}`,
+      })
+      .pipe(map((rows) => rows.map((row) => row.location)));
   }
 }

@@ -1,5 +1,5 @@
 import { inject, Injectable } from '@angular/core';
-import type { Observable } from 'rxjs';
+import { map, type Observable } from 'rxjs';
 import { PostgrestClient } from './postgrest.client';
 import type { Service } from './models';
 
@@ -24,5 +24,19 @@ export class ServiceRepository {
       slug: `eq.${slug}`,
       is_active: 'eq.true',
     });
+  }
+
+  /**
+   * Bir işletmenin sunduğu hizmetler (§42 entity ilişkileri —
+   * "Zümrüt Taksi → 7/24 Taksi" yönü). Detay sayfasının kendi hizmet
+   * varlıklarına GERİ link vermesi için; `business_services` üzerinden embed.
+   */
+  forBusiness(businessId: string): Observable<Service[]> {
+    return this.client
+      .list<{ service: Service }>('business_services', {
+        select: `service:services(${SERVICE_FIELDS})`,
+        business_id: `eq.${businessId}`,
+      })
+      .pipe(map((rows) => rows.map((row) => row.service)));
   }
 }

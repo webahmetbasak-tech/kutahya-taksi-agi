@@ -1,6 +1,6 @@
 # PROJECT_PLAN.md — Kütahya Taksi Ağı
 
-> Durum: **FAZ 4 tamamlandı.** Sıradaki: FAZ 5 — GEO / AI Search Layer.
+> Durum: **FAZ 5 tamamlandı.** Sıradaki: FAZ 6 — Analytics.
 > Son güncelleme: 9 Eylül 2026
 
 Mimari kararlar ve gerekçeleri için: [ARCHITECTURE.md](./ARCHITECTURE.md)
@@ -311,13 +311,45 @@ gönderilmedi (canlı bir URL gerektiriyor, henüz yok — Faz 12'de Search Cons
 birlikte yapılacak). Kod tarafında yapı doğru (testlerle kanıtlandı) ama üçüncü parti
 doğrulama bekliyor.
 
-### FAZ 5 — GEO / AI Search Layer
+### FAZ 5 — GEO / AI Search Layer ✅ TAMAMLANDI
 
-`/llms.txt`, entity ilişkileri, veriye dayalı güven sinyalleri, AI crawler politikasının
-güncel resmî dokümantasyonla doğrulanması.
+`/llms.txt`, entity ilişkileri (eksik olan TERS yön tamamlandı), veriye dayalı güven sinyalleri
+(Faz 3'te zaten uygulanmıştı, denetlendi), AI crawler politikasının güncel resmî
+dokümantasyonla doğrulanması.
 
-**DoD:** JS kapalıyken tüm kritik bilgi HTML'de · `llms.txt` yalnızca aktif/indexable URL
-listeliyor · hiçbir güven rozeti veriden bağımsız/sabit değil.
+**DoD durumu:**
+
+| Kriter                                                  | Durum                                                                 |
+| ------------------------------------------------------- | --------------------------------------------------------------------- |
+| JS kapalıyken tüm kritik bilgi HTML'de                  | ✅ Faz 1'den beri her fazın `curl` smoke testiyle doğrulanıyor        |
+| `llms.txt` yalnızca aktif/indexlenebilir URL listeliyor | ✅ `/panel`, `/isletme-ekle` yok; gerçek Supabase'e karşı test edildi |
+| Hiçbir güven rozeti veriden bağımsız/sabit değil        | ✅ Faz 3/4'te zaten böyleydi, bu fazda değişmedi                      |
+
+**AI crawler politikası — birincil kaynaklardan doğrulandı** (üçüncü parti blog özetleriyle
+YETİNİLMEDİ, her biri kendi resmî dokümantasyonundan teyit edildi):
+
+| Bot                                                              | Kaynak                                                | Bulgu                                                                                                                                                                                  |
+| ---------------------------------------------------------------- | ----------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| OpenAI (`GPTBot`, `OAI-SearchBot`, `OAI-AdsBot`, `ChatGPT-User`) | developers.openai.com/api/docs/bots                   | `GPTBot` yalnızca eğitim; `OAI-SearchBot` gerçek zamanlı arama; `ChatGPT-User` kullanıcı tetiklemeli, robots.txt'i dikkate almayabiliyor                                               |
+| Anthropic (`ClaudeBot`, `Claude-User`, `Claude-SearchBot`)       | support.claude.com (anthropic.com'dan yönlendirildi)  | Üçü de robots.txt'i dikkate alıyor; `ClaudeBot`=eğitim, `Claude-User`=kullanıcı sorgusu, `Claude-SearchBot`=arama kalitesi                                                             |
+| Google (`Google-Extended`)                                       | developers.google.com/search/docs                     | Ayrı bir HTTP user-agent'ı YOK (Googlebot'un çektiği içeriğe uygulanan bir bayrak); Arama sıralamasını/AI Overviews uygunluğunu ETKİLEMEDİĞİNİ Google açıkça belirtiyor                |
+| Perplexity (`PerplexityBot`, `Perplexity-User`)                  | docs.perplexity.ai/docs/resources/perplexity-crawlers | `PerplexityBot` arama amaçlı ve robots.txt'e uyuyor; `Perplexity-User` kullanıcı sorgusu tetikler ve **robots.txt'i genellikle dikkate almadığını kendi dokümantasyonunda belirtiyor** |
+
+**Karar (değişmedi, şimdi doğrulanmış veriyle netleşti):** Hem arama/erişim botları hem eğitim
+botları **allow** — hedef görünürlük (§38), hiçbiri sıralama garantisi değil (§73, §77).
+`robots.txt` artık her birine AYRI `Allow: /` satırı yazıyor (önceki fazda tek bir genel
+`Allow: /` vardı) — niyeti denetlenebilir kılmak için, davranışsal bir fark yaratmıyor
+(`User-agent: *` zaten hepsini kapsıyor).
+
+**Faz 5'te bulunan gerçek eksik — entity ilişkileri tek yönlüydü.** §42'nin örnek zinciri
+("Zümrüt Taksi → Kütahya Merkez → 7/24 Taksi → Zafer Havalimanı Transferi") çift yönlü bir
+graf varsayıyor. Bölge/hizmet sayfaları işletmelere zaten link veriyordu (Faz 3) ama işletme
+detay sayfası kendi hizmet/bölge varlıklarına HİÇ geri link vermiyordu — `BusinessRepository`
+o ilişkileri hiç okumuyordu. Düzeltildi: `ServiceRepository.forBusiness()` ve
+`LocationRepository.forBusiness()` eklendi, `taxi-detail-page.ts`'e "Hizmetler" ve
+"Hizmet Bölgeleri" bölümleri eklendi (gerçek veri yoksa bölüm hiç görünmez). Yeni bir birim
+testle işletmenin gerçek hizmet/bölge linklerinin render edildiği kanıtlandı — sadece
+çökmediği değil.
 
 ### FAZ 6 — Analytics
 

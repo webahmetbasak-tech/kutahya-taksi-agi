@@ -2,6 +2,8 @@ import { Component, computed, effect, inject, input, RESPONSE_INIT } from '@angu
 import { rxResource } from '@angular/core/rxjs-interop';
 import { RouterLink } from '@angular/router';
 import { BusinessRepository } from '@core/data/business.repository';
+import { ServiceRepository } from '@core/data/service.repository';
+import { LocationRepository } from '@core/data/location.repository';
 import type { BusinessDetail, SlugResolution } from '@core/data/models';
 import { SeoService } from '@core/seo/seo.service';
 import { SchemaService } from '@core/schema/schema.service';
@@ -100,6 +102,32 @@ const SOURCE_LABELS: Record<string, string> = {
           <section class="section" aria-labelledby="website-heading">
             <h2 id="website-heading" class="section-title">Web sitesi</h2>
             <a [href]="b.website" target="_blank" rel="noopener">{{ b.website }}</a>
+          </section>
+        }
+
+        @if ((services.value() ?? []).length > 0) {
+          <section class="section" aria-labelledby="services-heading">
+            <h2 id="services-heading" class="section-title">Hizmetler</h2>
+            <ul class="chip-row">
+              @for (s of services.value() ?? []; track s.id) {
+                <li>
+                  <a class="chip" [routerLink]="['/hizmet', s.slug]">{{ s.name }}</a>
+                </li>
+              }
+            </ul>
+          </section>
+        }
+
+        @if ((locations.value() ?? []).length > 0) {
+          <section class="section" aria-labelledby="areas-heading">
+            <h2 id="areas-heading" class="section-title">Hizmet Bölgeleri</h2>
+            <ul class="chip-row">
+              @for (loc of locations.value() ?? []; track loc.id) {
+                <li>
+                  <a class="chip" [routerLink]="['/bolge', loc.slug]">{{ loc.name }}</a>
+                </li>
+              }
+            </ul>
           </section>
         }
 
@@ -206,6 +234,8 @@ const SOURCE_LABELS: Record<string, string> = {
 })
 export class TaxiDetailPage {
   private readonly repo = inject(BusinessRepository);
+  private readonly serviceRepo = inject(ServiceRepository);
+  private readonly locationRepo = inject(LocationRepository);
   private readonly responseInit = inject(RESPONSE_INIT, { optional: true });
   private readonly seo = inject(SeoService);
   private readonly schema = inject(SchemaService);
@@ -223,6 +253,18 @@ export class TaxiDetailPage {
   protected readonly hours = rxResource({
     params: () => this.businessId(),
     stream: ({ params }) => this.repo.hours(params),
+  });
+
+  /** §42 entity ilişkileri: bu işletmenin sunduğu hizmetlere GERİ link. */
+  protected readonly services = rxResource({
+    params: () => this.businessId(),
+    stream: ({ params }) => this.serviceRepo.forBusiness(params),
+  });
+
+  /** §42 entity ilişkileri: bu işletmenin hizmet verdiği bölgelere GERİ link. */
+  protected readonly locations = rxResource({
+    params: () => this.businessId(),
+    stream: ({ params }) => this.locationRepo.forBusiness(params),
   });
 
   /** Yalnızca `business` "bulunamadı" ile çözüldüğünde bir değer üretir. */

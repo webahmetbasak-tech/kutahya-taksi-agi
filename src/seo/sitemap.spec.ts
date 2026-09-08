@@ -35,9 +35,27 @@ describe('buildRobotsTxt', () => {
   it("production'da her şeye izin verir ve sitemap URLsini bildirir", () => {
     const txt = buildRobotsTxt({ production: true, siteUrl: 'https://example.test' });
 
-    expect(txt).toContain('Allow: /');
+    expect(txt).toContain('User-agent: *\nAllow: /');
     expect(txt).toContain('Sitemap: https://example.test/sitemap.xml');
     expect(txt).not.toContain('Disallow');
+  });
+
+  it('arama/erişim ve eğitim AI botlarının hepsine ayrı ayrı Allow verir (§35, birincil kaynaklarla doğrulandı)', () => {
+    const txt = buildRobotsTxt({ production: true, siteUrl: 'https://example.test' });
+
+    for (const ua of [
+      'GPTBot',
+      'OAI-SearchBot',
+      'ChatGPT-User',
+      'ClaudeBot',
+      'Claude-User',
+      'Claude-SearchBot',
+      'Google-Extended',
+      'PerplexityBot',
+      'Perplexity-User',
+    ]) {
+      expect(txt).toContain(`User-agent: ${ua}\nAllow: /`);
+    }
   });
 });
 

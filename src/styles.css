@@ -176,3 +176,28 @@
   background-color: var(--c-warning-soft);
   color: var(--c-warning);
 }
+
+/* --- Chip (entity ilişkisi linkleri: bölge/hizmet, §42) --------------------- */
+
+.chip-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--sp-2);
+}
+
+.chip {
+  display: inline-flex;
+  align-items: center;
+  min-height: var(--tap-min);
+  padding-inline: var(--sp-4);
+  border-radius: var(--radius-full);
+  background-color: var(--c-bg-subtle);
+  border: 1px solid var(--c-border);
+  text-decoration: none;
+  font-size: var(--fs-sm);
+  font-weight: var(--fw-medium);
+}
+
+.chip:hover {
+  border-color: var(--c-border-strong);
+}

@@ -159,28 +159,7 @@ import { SeoService } from '@core/seo/seo.service';
       margin-block-end: var(--sp-4);
     }
 
-    .chip-row {
-      display: flex;
-      flex-wrap: wrap;
-      gap: var(--sp-2);
-    }
-
-    .chip {
-      display: inline-flex;
-      align-items: center;
-      min-height: var(--tap-min);
-      padding-inline: var(--sp-4);
-      border-radius: var(--radius-full);
-      background-color: var(--c-bg-subtle);
-      border: 1px solid var(--c-border);
-      text-decoration: none;
-      font-size: var(--fs-sm);
-      font-weight: var(--fw-medium);
-    }
-
-    .chip:hover {
-      border-color: var(--c-border-strong);
-    }
+    /* .chip / .chip-row: src/styles.css'te global — birden fazla sayfada kullanılıyor */
 
     .owner-cta {
       display: flex;

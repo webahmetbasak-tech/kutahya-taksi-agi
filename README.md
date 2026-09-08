@@ -11,8 +11,8 @@ tıkladığını görür.
 - Mimari kararlar ve gerekçeleri: [ARCHITECTURE.md](./ARCHITECTURE.md)
 - Faz planı, riskler ve durum: [PROJECT_PLAN.md](./PROJECT_PLAN.md)
 
-**Durum:** FAZ 4 (SEO Engine) tamamlandı. Her sayfa title/description/canonical/OG/JSON-LD
-taşıyor; `sitemap.xml`/`robots.txt` dinamik; 301/410/404 ayrımı gerçek HTTP durumuyla çalışıyor.
+**Durum:** FAZ 5 (GEO / AI Search Layer) tamamlandı. `/llms.txt` yayında, AI crawler politikası
+birincil kaynaklardan doğrulandı, işletme ↔ bölge ↔ hizmet entity ilişkileri artık çift yönlü.
 Henüz canlı deployment yok (Vercel — FAZ 12), henüz doğrulanmış işletme verisi yok
 (bkz. PROJECT_PLAN.md R1).
 
@@ -152,7 +152,8 @@ src/app/
               utils (phone, directions, date)
   features/   home, taxis, taxi-detail, locations, services, landing,
               business-submit, legal, dashboard, not-found
-src/seo/      sitemap.ts (saf fonksiyonlar — server.ts'in Express route'ları kullanır)
+src/seo/      sitemap.ts, llms-txt.ts, postgrest-fetch.ts (saf fonksiyonlar —
+              server.ts'in Express route'ları kullanır)
 src/styles/   tokens.css, reset.css
 src/environments/  ortam modeli + üretilen dosya (gitignore'da)
 scripts/      generate-env.mjs, rls-test.mjs
@@ -195,6 +196,23 @@ Bulunamayan `/taksi/:slug` istekleri kör 404 dönmez: `resolve_missing_business
 slug taşınmışsa **301** (+ `Location` header), işletme kalıcı kaldırılmışsa **410**, hiç var
 olmamışsa **404** döndürür — hepsi gerçek HTTP durum koduyla, `taxi-detail-page.spec.ts`'te
 `HttpTestingController` ile kanıtlanmıştır.
+
+### GEO / AI Search
+
+`/llms.txt` (`src/seo/llms-txt.ts`, `sitemap.ts` ile aynı desen) AI ajanlarının site yapısını
+anlaması için önerilen — ama resmî olmayan — bir konvansiyon; site tanımı + gerçek bölge/hizmet/
+aktif işletme listesi içerir, boş bölümlerde sahte içerik üretmez ("henüz yayınlanmış içerik
+yok" yazar). **Görünürlük garantisi değildir.**
+
+`robots.txt` üretimindeki AI crawler listesi (OpenAI/Anthropic/Google/Perplexity) her birinin
+kendi resmî dokümantasyonundan doğrulandı (bkz. PROJECT_PLAN.md Faz 5) — üçüncü parti özetlerle
+yetinilmedi. Arama/erişim botları (`OAI-SearchBot`, `ChatGPT-User`, `Claude-SearchBot`,
+`Claude-User`, `PerplexityBot`, `Perplexity-User`) ve eğitim botları (`GPTBot`, `ClaudeBot`,
+`Google-Extended`) hepsi **allow** — hedef görünürlük, sıralama garantisi değil.
+
+İşletme detay sayfası artık kendi hizmet/bölge ilişkilerine GERİ link veriyor
+(`ServiceRepository.forBusiness()`, `LocationRepository.forBusiness()`) — §42'nin
+"Zümrüt Taksi → Kütahya Merkez → 7/24 Taksi" zinciri artık çift yönlü tamamlanmış durumda.
 
 ---
 

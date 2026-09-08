@@ -147,6 +147,8 @@ describe('TaxiDetailPage', () => {
       ]);
     await tick();
     http.expectOne((r) => r.url.includes('/rest/v1/business_hours')).flush([]);
+    http.expectOne((r) => r.url.includes('/rest/v1/business_services')).flush([]);
+    http.expectOne((r) => r.url.includes('/rest/v1/business_locations')).flush([]);
 
     await fixture.whenStable();
 
@@ -186,6 +188,8 @@ describe('TaxiDetailPage', () => {
       ]);
     await tick();
     http.expectOne((r) => r.url.includes('/rest/v1/business_hours')).flush([]);
+    http.expectOne((r) => r.url.includes('/rest/v1/business_services')).flush([]);
+    http.expectOne((r) => r.url.includes('/rest/v1/business_locations')).flush([]);
 
     await fixture.whenStable();
 
@@ -194,5 +198,52 @@ describe('TaxiDetailPage', () => {
     const data = JSON.parse(script?.textContent ?? '{}');
     expect(data.name).toBe('Has Taksi');
     expect('telephone' in data).toBe(false);
+  });
+
+  it('işletmenin hizmet ve bölge ilişkilerine GERİ link verir (§42 entity ilişkileri)', async () => {
+    const fixture = await setup('nur-taksi');
+
+    http
+      .expectOne((r) => r.url.includes('/rest/v1/businesses'))
+      .flush([
+        {
+          id: '3',
+          slug: 'nur-taksi',
+          business_name: 'Nur Taksi',
+          phone_e164: null,
+          phone_display: null,
+          whatsapp_e164: null,
+          district: 'Merkez',
+          neighborhood: null,
+          verification_status: 'unverified',
+          last_verified_at: null,
+          google_maps_url: null,
+          description: null,
+          address: null,
+          city: 'Kütahya',
+          latitude: null,
+          longitude: null,
+          website: null,
+          source_type: 'manual',
+          updated_at: '2026-09-01T00:00:00Z',
+        },
+      ]);
+    await tick();
+    http.expectOne((r) => r.url.includes('/rest/v1/business_hours')).flush([]);
+    http
+      .expectOne((r) => r.url.includes('/rest/v1/business_services'))
+      .flush([{ service: { id: 's1', slug: '724-taksi', name: '7/24 Taksi', description: null } }]);
+    http
+      .expectOne((r) => r.url.includes('/rest/v1/business_locations'))
+      .flush([{ location: { id: 'l1', slug: 'merkez', name: 'Kütahya Merkez' } }]);
+
+    await fixture.whenStable();
+
+    const html = fixture.nativeElement as HTMLElement;
+    const serviceLink = html.querySelector<HTMLAnchorElement>('a[href="/hizmet/724-taksi"]');
+    const locationLink = html.querySelector<HTMLAnchorElement>('a[href="/bolge/merkez"]');
+
+    expect(serviceLink?.textContent?.trim()).toBe('7/24 Taksi');
+    expect(locationLink?.textContent?.trim()).toBe('Kütahya Merkez');
   });
 });
