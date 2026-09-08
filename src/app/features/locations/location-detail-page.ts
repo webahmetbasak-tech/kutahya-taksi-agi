@@ -1,11 +1,15 @@
 import { Component, computed, effect, inject, input, RESPONSE_INIT } from '@angular/core';
-import { Title } from '@angular/platform-browser';
 import { rxResource } from '@angular/core/rxjs-interop';
 import { RouterLink } from '@angular/router';
 import { LocationRepository } from '@core/data/location.repository';
 import { BusinessRepository } from '@core/data/business.repository';
 import { BusinessList } from '@shared/components/business-list';
+import { Breadcrumb } from '@shared/components/breadcrumb';
 import { Skeleton } from '@shared/ui/skeleton';
+import { SeoService } from '@core/seo/seo.service';
+import { SchemaService } from '@core/schema/schema.service';
+import { buildBreadcrumbList, buildItemList } from '@core/schema/builders';
+import { absoluteUrl } from '@env';
 
 /**
  * Bölge detay sayfası — `/bolge/:slug` (§12, §42).
@@ -20,15 +24,13 @@ import { Skeleton } from '@shared/ui/skeleton';
  */
 @Component({
   selector: 'app-location-detail-page',
-  imports: [RouterLink, BusinessList, Skeleton],
+  imports: [RouterLink, BusinessList, Skeleton, Breadcrumb],
   template: `
     <div class="container page">
       @if (location.isLoading()) {
         <app-skeleton height="2rem" width="50%" />
       } @else if (location.value(); as loc) {
-        <nav class="breadcrumb muted" aria-label="Ekmek kırıntısı">
-          <a routerLink="/bolge">Bölgeler</a> / <span>{{ loc.name }}</span>
-        </nav>
+        <app-breadcrumb [items]="[{ label: 'Bölgeler', path: '/bolge' }, { label: loc.name }]" />
 
         <h1 class="page-title">{{ loc.name }} Taksileri</h1>
         <p class="lead">{{ loc.name }} bölgesinde hizmet veren taksi işletmeleri.</p>
@@ -55,15 +57,6 @@ import { Skeleton } from '@shared/ui/skeleton';
       padding-block: var(--sp-8) var(--sp-12);
     }
 
-    .breadcrumb {
-      font-size: var(--fs-sm);
-      margin-block-end: var(--sp-3);
-    }
-
-    .breadcrumb a {
-      text-decoration: none;
-    }
-
     .lead {
       margin-block: var(--sp-2) var(--sp-8);
       max-width: 60ch;
@@ -81,7 +74,8 @@ export class LocationDetailPage {
   private readonly locationRepo = inject(LocationRepository);
   private readonly businessRepo = inject(BusinessRepository);
   private readonly responseInit = inject(RESPONSE_INIT, { optional: true });
-  private readonly title = inject(Title);
+  private readonly seo = inject(SeoService);
+  private readonly schema = inject(SchemaService);
 
   readonly slug = input.required<string>();
 
@@ -103,12 +97,45 @@ export class LocationDetailPage {
         return;
       }
       const loc = this.location.value();
-      if (loc === null && this.responseInit) {
-        this.responseInit.status = 404;
+
+      if (!loc) {
+        if (this.responseInit) {
+          this.responseInit.status = 404;
+        }
+        this.seo.setPage({
+          title: 'Bölge bulunamadı — Kütahya Taksi Ağı',
+          description: 'Aradığınız bölge bulunamadı.',
+          path: `/bolge/${this.slug()}`,
+          noindex: true,
+        });
+        this.schema.remove('breadcrumb');
+        this.schema.remove('itemlist');
+        return;
       }
-      this.title.setTitle(
-        loc ? `${loc.name} Taksileri — Kütahya Taksi Ağı` : 'Bölge bulunamadı — Kütahya Taksi Ağı',
+
+      const path = `/bolge/${loc.slug}`;
+      this.seo.setPage({
+        title: `${loc.name} Taksileri — Kütahya Taksi Ağı`,
+        description: `${loc.name} bölgesinde hizmet veren, doğrulanmış taksi işletmeleri.`,
+        path,
+      });
+
+      this.schema.set(
+        'breadcrumb',
+        buildBreadcrumbList([{ name: 'Bölgeler', url: absoluteUrl('/bolge') }, { name: loc.name }]),
       );
+
+      const list = this.businesses.value();
+      if (list && list.length > 0) {
+        this.schema.set(
+          'itemlist',
+          buildItemList(
+            list.map((b) => ({ name: b.business_name, url: absoluteUrl(`/taksi/${b.slug}`) })),
+          ),
+        );
+      } else {
+        this.schema.remove('itemlist');
+      }
     });
   }
 }

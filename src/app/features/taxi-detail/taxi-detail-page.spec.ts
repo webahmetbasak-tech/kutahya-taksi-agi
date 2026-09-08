@@ -16,15 +16,15 @@ const config: AppEnvironment = {
 };
 
 /**
- * Bu testin varlık nedeni: taxi-detail-page.ts'teki 404 mekanizması
- * (`RESPONSE_INIT.status = 404`) yalnızca kod okuyarak doğrulanamaz — Angular'ın
+ * Bu testlerin varlık nedeni: taxi-detail-page.ts'teki 301/410/404 mekanizması
+ * (`RESPONSE_INIT.status`) yalnızca kod okuyarak doğrulanamaz — Angular'ın
  * resource + effect zamanlamasının gerçekten çalıştığını göstermek gerekir.
- * "İşletme bulunamadı → gerçek 404" iddiası ARCHITECTURE.md ve PROJECT_PLAN'da
- * defalarca tekrarlanan bir söz (§64); burada kanıtlanıyor.
+ * "İşletme bulunamadı → gerçek HTTP durum kodu" iddiası ARCHITECTURE.md ve
+ * PROJECT_PLAN'da defalarca tekrarlanan bir söz (§64); burada kanıtlanıyor.
  */
 describe('TaxiDetailPage', () => {
   let http: HttpTestingController;
-  let responseInit: { status?: number };
+  let responseInit: { status?: number; headers?: { Location?: string } };
 
   async function setup(slug: string) {
     responseInit = {};
@@ -45,16 +45,39 @@ describe('TaxiDetailPage', () => {
     const fixture = TestBed.createComponent(TaxiDetailPage);
     fixture.componentRef.setInput('slug', slug);
     fixture.detectChanges();
+    currentFixture = fixture;
     return fixture;
   }
 
   afterEach(() => http.verify());
 
-  it('işletme bulunamazsa RESPONSE_INIT.status = 404 olur (gerçek 404, soft-404 değil)', async () => {
+  /**
+   * `business` sonuçlanınca `hours`/`resolution` kaynakları ONA BAĞLI bir
+   * `computed()` üzerinden tetiklenir. Bu zincir (sinyal güncellemesi ->
+   * computed yeniden hesaplama -> resource'un kendi effect'i -> HTTP isteği)
+   * birden fazla mikro görev/CD turu gerektiriyor; tek bir `whenStable()` bu
+   * durumda YARDIMCI OLMAZ çünkü henüz var olmayan bir isteği "bekler" ve
+   * zaman aşımına uğrar. Bu yüzden birkaç `detectChanges()` + görev kuyruğu
+   * turu art arda uygulanıyor — ikinci isteğin gerçekten sıraya girdiğinden
+   * emin olana kadar.
+   */
+  let currentFixture: ReturnType<typeof TestBed.createComponent<TaxiDetailPage>>;
+  const tick = async () => {
+    for (let i = 0; i < 5; i++) {
+      currentFixture.detectChanges();
+      await Promise.resolve();
+      await new Promise((resolve) => setTimeout(resolve, 0));
+    }
+  };
+
+  it('işletme bulunamazsa VE slug geçmişte de yoksa RESPONSE_INIT.status = 404 olur', async () => {
     const fixture = await setup('olmayan-slug');
 
-    const req = http.expectOne((r) => r.url.includes('/rest/v1/businesses'));
-    req.flush([]); // PostgREST: eşleşme yok -> boş dizi -> single() null döner
+    http.expectOne((r) => r.url.includes('/rest/v1/businesses')).flush([]);
+    await tick();
+    http
+      .expectOne((r) => r.url.includes('/rpc/resolve_missing_business_slug'))
+      .flush({ outcome: 'not_found', new_slug: null });
 
     await fixture.whenStable();
 
@@ -64,33 +87,66 @@ describe('TaxiDetailPage', () => {
     );
   });
 
+  it('slug taşınmışsa (business_slug_history eşleşirse) 301 + Location header döner', async () => {
+    const fixture = await setup('eski-slug');
+
+    http.expectOne((r) => r.url.includes('/rest/v1/businesses')).flush([]);
+    await tick();
+    http
+      .expectOne((r) => r.url.includes('/rpc/resolve_missing_business_slug'))
+      .flush({ outcome: 'redirect', new_slug: 'yeni-slug' });
+
+    await fixture.whenStable();
+
+    expect(responseInit.status).toBe(301);
+    expect(responseInit.headers?.Location).toBe('/taksi/yeni-slug');
+  });
+
+  it('işletme kalıcı olarak kaldırılmışsa 410 döner ve dedike bir mesaj gösterir', async () => {
+    const fixture = await setup('kapatilan-isletme');
+
+    http.expectOne((r) => r.url.includes('/rest/v1/businesses')).flush([]);
+    await tick();
+    http
+      .expectOne((r) => r.url.includes('/rpc/resolve_missing_business_slug'))
+      .flush({ outcome: 'archived', new_slug: null });
+
+    await fixture.whenStable();
+
+    expect(responseInit.status).toBe(410);
+    expect((fixture.nativeElement as HTMLElement).textContent).toContain('Bu işletme kapatıldı');
+  });
+
   it('işletme bulunursa RESPONSE_INIT.status DOKUNULMAZ ve içerik render edilir', async () => {
     const fixture = await setup('zumrut-taksi');
 
-    const req = http.expectOne((r) => r.url.includes('/rest/v1/businesses'));
-    req.flush([
-      {
-        id: '1',
-        slug: 'zumrut-taksi',
-        business_name: 'Zümrüt Taksi',
-        phone_e164: '+905551112233',
-        phone_display: null,
-        whatsapp_e164: null,
-        district: 'Merkez',
-        neighborhood: null,
-        verification_status: 'unverified',
-        last_verified_at: null,
-        google_maps_url: null,
-        description: null,
-        address: null,
-        city: 'Kütahya',
-        latitude: null,
-        longitude: null,
-        website: null,
-        source_type: 'manual',
-        updated_at: '2026-09-01T00:00:00Z',
-      },
-    ]);
+    http
+      .expectOne((r) => r.url.includes('/rest/v1/businesses'))
+      .flush([
+        {
+          id: '1',
+          slug: 'zumrut-taksi',
+          business_name: 'Zümrüt Taksi',
+          phone_e164: '+905551112233',
+          phone_display: null,
+          whatsapp_e164: null,
+          district: 'Merkez',
+          neighborhood: null,
+          verification_status: 'unverified',
+          last_verified_at: null,
+          google_maps_url: null,
+          description: null,
+          address: null,
+          city: 'Kütahya',
+          latitude: null,
+          longitude: null,
+          website: null,
+          source_type: 'manual',
+          updated_at: '2026-09-01T00:00:00Z',
+        },
+      ]);
+    await tick();
+    http.expectOne((r) => r.url.includes('/rest/v1/business_hours')).flush([]);
 
     await fixture.whenStable();
 
@@ -98,5 +154,45 @@ describe('TaxiDetailPage', () => {
     const text = (fixture.nativeElement as HTMLElement).textContent ?? '';
     expect(text).toContain('Zümrüt Taksi');
     expect(text).not.toContain('İşletme profili bulunamadı');
+  });
+
+  it('bulunan işletme için LocalBusiness JSON-LD yazar, telefon yoksa telephone alanı hiç görünmez', async () => {
+    const fixture = await setup('has-taksi');
+
+    http
+      .expectOne((r) => r.url.includes('/rest/v1/businesses'))
+      .flush([
+        {
+          id: '2',
+          slug: 'has-taksi',
+          business_name: 'Has Taksi',
+          phone_e164: null,
+          phone_display: null,
+          whatsapp_e164: null,
+          district: 'Merkez',
+          neighborhood: null,
+          verification_status: 'unverified',
+          last_verified_at: null,
+          google_maps_url: null,
+          description: null,
+          address: null,
+          city: 'Kütahya',
+          latitude: null,
+          longitude: null,
+          website: null,
+          source_type: 'manual',
+          updated_at: '2026-09-01T00:00:00Z',
+        },
+      ]);
+    await tick();
+    http.expectOne((r) => r.url.includes('/rest/v1/business_hours')).flush([]);
+
+    await fixture.whenStable();
+
+    const script = document.getElementById('ld-json-business');
+    expect(script).not.toBeNull();
+    const data = JSON.parse(script?.textContent ?? '{}');
+    expect(data.name).toBe('Has Taksi');
+    expect('telephone' in data).toBe(false);
   });
 });

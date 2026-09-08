@@ -1,12 +1,17 @@
 import { Component, computed, effect, inject, input, RESPONSE_INIT } from '@angular/core';
-import { Title } from '@angular/platform-browser';
 import { rxResource } from '@angular/core/rxjs-interop';
 import { RouterLink } from '@angular/router';
 import { BusinessRepository } from '@core/data/business.repository';
+import type { BusinessDetail, SlugResolution } from '@core/data/models';
+import { SeoService } from '@core/seo/seo.service';
+import { SchemaService } from '@core/schema/schema.service';
+import { buildBreadcrumbList, buildLocalBusiness } from '@core/schema/builders';
+import { Breadcrumb } from '@shared/components/breadcrumb';
 import { Skeleton } from '@shared/ui/skeleton';
 import { formatPhoneDisplay, telHref, whatsappHref } from '@shared/utils/phone';
 import { directionsHref } from '@shared/utils/directions';
 import { formatTrDate } from '@shared/utils/date';
+import { absoluteUrl } from '@env';
 
 const SOURCE_LABELS: Record<string, string> = {
   manual: 'Ekip tarafından girildi',
@@ -19,21 +24,22 @@ const SOURCE_LABELS: Record<string, string> = {
 /**
  * Taksi detay sayfası — `/taksi/:slug` (§24).
  *
- * `slug` route parametresi component input'una bağlanır (`withComponentInputBinding`).
- * SSR kanıtı: rastgele bir slug sunucu HTML'inde görünüyorsa (bulunamadı sayfası
- * olarak da olsa) render istek anında çalışıyor demektir — Faz 1'de bu şekilde
- * doğrulandı.
+ * İKİ AŞAMALI BULUNAMADI MANTIĞI (§64): `bySlug()` `null` dönünce hemen 404
+ * denmez. Yalnızca O ZAMAN (nadir yol) `resolveMissingSlug()` çağrılır ve üç
+ * gerçek durumdan biri uygulanır:
+ *   - 'redirect'  -> 301 + Location header (slug değişmiş, işletme hâlâ aktif)
+ *   - 'archived'  -> 410 (işletme kalıcı olarak kaldırılmış)
+ *   - 'not_found' -> 404 (hiç var olmamış)
+ * Bu tek ek istek normal sayfa görüntülemede HİÇ yapılmaz — yalnızca zaten
+ * başarısız olmuş bir arama sonrası.
  *
- * İşletme bulunamazsa gerçek HTTP 404 döner (`RESPONSE_INIT`, yalnızca SSR'da
- * mevcuttur) — "soft 404" oluşmaz (§64).
- *
- * Güven sinyalleri (§41) yalnızca veriden geliyorsa gösterilir: doğrulama
- * rozeti `verification_status` + `last_verified_at` birlikte doluyken, kaynak
- * bilgisi her zaman `source_type`'tan, "son güncelleme" her zaman `updated_at`'tan.
+ * `RESPONSE_INIT` yalnızca SSR'da mevcuttur (`inject(..., {optional:true})`);
+ * tarayıcıda `null` gelir ve durum kodu ayarlama no-op olur — zaten tarayıcı
+ * bir HTTP durum kodu ayarlayamaz, bu doğru davranıştır.
  */
 @Component({
   selector: 'app-taxi-detail-page',
-  imports: [RouterLink, Skeleton],
+  imports: [RouterLink, Skeleton, Breadcrumb],
   template: `
     <div class="container page">
       @if (business.isLoading()) {
@@ -43,9 +49,9 @@ const SOURCE_LABELS: Record<string, string> = {
           <app-skeleton height="3rem" />
         </div>
       } @else if (business.value(); as b) {
-        <nav class="breadcrumb muted" aria-label="Ekmek kırıntısı">
-          <a routerLink="/taksi">Taksiler</a> / <span>{{ b.business_name }}</span>
-        </nav>
+        <app-breadcrumb
+          [items]="[{ label: 'Taksiler', path: '/taksi' }, { label: b.business_name }]"
+        />
 
         <h1 class="page-title">{{ b.business_name }} — Kütahya</h1>
 
@@ -113,6 +119,12 @@ const SOURCE_LABELS: Record<string, string> = {
             Profilimi Sahiplen
           </a>
         </section>
+      } @else if (isArchived()) {
+        <h1 class="page-title">Bu işletme kapatıldı</h1>
+        <p class="lead">
+          <code class="slug">{{ slug() }}</code> profili kalıcı olarak kaldırıldı.
+        </p>
+        <a routerLink="/taksi" class="btn btn--secondary">Tüm Taksileri Gör</a>
       } @else {
         <h1 class="page-title">İşletme profili bulunamadı</h1>
         <p class="lead">
@@ -133,15 +145,6 @@ const SOURCE_LABELS: Record<string, string> = {
     .page {
       padding-block: var(--sp-8) var(--sp-12);
       max-width: 46rem;
-    }
-
-    .breadcrumb {
-      font-size: var(--fs-sm);
-      margin-block-end: var(--sp-3);
-    }
-
-    .breadcrumb a {
-      text-decoration: none;
     }
 
     .lead {
@@ -204,7 +207,8 @@ const SOURCE_LABELS: Record<string, string> = {
 export class TaxiDetailPage {
   private readonly repo = inject(BusinessRepository);
   private readonly responseInit = inject(RESPONSE_INIT, { optional: true });
-  private readonly title = inject(Title);
+  private readonly seo = inject(SeoService);
+  private readonly schema = inject(SchemaService);
 
   /** `/taksi/:slug` route parametresinden gelir. */
   readonly slug = input.required<string>();
@@ -213,6 +217,27 @@ export class TaxiDetailPage {
     params: () => this.slug(),
     stream: ({ params }) => this.repo.bySlug(params),
   });
+
+  private readonly businessId = computed(() => this.business.value()?.id);
+
+  protected readonly hours = rxResource({
+    params: () => this.businessId(),
+    stream: ({ params }) => this.repo.hours(params),
+  });
+
+  /** Yalnızca `business` "bulunamadı" ile çözüldüğünde bir değer üretir. */
+  private readonly missingSlug = computed(() =>
+    this.business.status() === 'resolved' && this.business.value() === null
+      ? this.slug()
+      : undefined,
+  );
+
+  protected readonly resolution = rxResource({
+    params: () => this.missingSlug(),
+    stream: ({ params }) => this.repo.resolveMissingSlug(params),
+  });
+
+  protected readonly isArchived = computed(() => this.resolution.value()?.outcome === 'archived');
 
   protected readonly locationLabel = computed(() => {
     const b = this.business.value();
@@ -268,15 +293,94 @@ export class TaxiDetailPage {
       if (this.business.status() !== 'resolved') {
         return;
       }
-      const business = this.business.value();
-      if (business === null && this.responseInit) {
-        this.responseInit.status = 404;
+      const b = this.business.value();
+
+      if (b) {
+        this.applyFoundState(b);
+        return;
       }
-      this.title.setTitle(
-        business
-          ? `${business.business_name} — Kütahya | Kütahya Taksi Ağı`
-          : 'İşletme bulunamadı — Kütahya Taksi Ağı',
-      );
+
+      this.applyMissingState();
+    });
+  }
+
+  private applyFoundState(b: BusinessDetail): void {
+    const path = `/taksi/${b.slug}`;
+
+    this.seo.setPage({
+      title: `${b.business_name} — Kütahya | Kütahya Taksi Ağı`,
+      description:
+        b.description ??
+        `${b.business_name} — ${this.locationLabel() ?? 'Kütahya'} bölgesinde taksi hizmeti.`,
+      path,
+    });
+
+    this.schema.set(
+      'breadcrumb',
+      buildBreadcrumbList([
+        { name: 'Taksiler', url: absoluteUrl('/taksi') },
+        { name: b.business_name },
+      ]),
+    );
+
+    this.schema.set(
+      'business',
+      buildLocalBusiness({
+        name: b.business_name,
+        url: absoluteUrl(path),
+        description: b.description,
+        telephone: b.phone_e164,
+        address: b.address,
+        city: b.city,
+        district: b.district,
+        neighborhood: b.neighborhood,
+        hours: this.hours.value() ?? [],
+      }),
+    );
+  }
+
+  /** `business` null döndüğünde: `resolution` sonucuna göre 301/410/404. */
+  private applyMissingState(): void {
+    this.schema.remove('business');
+    this.schema.remove('breadcrumb');
+
+    if (this.resolution.status() !== 'resolved') {
+      return;
+    }
+
+    this.applyResolution(this.resolution.value());
+  }
+
+  private applyResolution(resolution: SlugResolution | undefined): void {
+    if (resolution?.outcome === 'redirect' && resolution.new_slug) {
+      if (this.responseInit) {
+        this.responseInit.status = 301;
+        this.responseInit.headers = { Location: `/taksi/${resolution.new_slug}` };
+      }
+      return;
+    }
+
+    if (resolution?.outcome === 'archived') {
+      if (this.responseInit) {
+        this.responseInit.status = 410;
+      }
+      this.seo.setPage({
+        title: 'İşletme kapatıldı — Kütahya Taksi Ağı',
+        description: 'Bu işletme profili kalıcı olarak kaldırıldı.',
+        path: `/taksi/${this.slug()}`,
+        noindex: true,
+      });
+      return;
+    }
+
+    if (this.responseInit) {
+      this.responseInit.status = 404;
+    }
+    this.seo.setPage({
+      title: 'İşletme bulunamadı — Kütahya Taksi Ağı',
+      description: 'Aradığınız taksi işletmesi bulunamadı.',
+      path: `/taksi/${this.slug()}`,
+      noindex: true,
     });
   }
 }

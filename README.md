@@ -11,9 +11,10 @@ tıkladığını görür.
 - Mimari kararlar ve gerekçeleri: [ARCHITECTURE.md](./ARCHITECTURE.md)
 - Faz planı, riskler ve durum: [PROJECT_PLAN.md](./PROJECT_PLAN.md)
 
-**Durum:** FAZ 3 (Public Website) tamamlandı. Ana sayfa, taksi listesi/detayı, bölge ve
-hizmet sayfaları gerçek Supabase verisine bağlı. Henüz canlı deployment yok (Vercel — FAZ 12),
-henüz doğrulanmış işletme verisi yok (bkz. PROJECT_PLAN.md R1).
+**Durum:** FAZ 4 (SEO Engine) tamamlandı. Her sayfa title/description/canonical/OG/JSON-LD
+taşıyor; `sitemap.xml`/`robots.txt` dinamik; 301/410/404 ayrımı gerçek HTTP durumuyla çalışıyor.
+Henüz canlı deployment yok (Vercel — FAZ 12), henüz doğrulanmış işletme verisi yok
+(bkz. PROJECT_PLAN.md R1).
 
 ---
 
@@ -143,12 +144,15 @@ bu yüzden `TransferState`'i elle kullanıyor: sunucu yazar, tarayıcı bir kez 
 
 ```
 src/app/
-  core/       config, errors, data (postgrest client + repository'ler), geo (konum)
-              (ileride: supabase, seo, schema, analytics, guards)
+  core/       config, errors, data (postgrest client + repository'ler), geo (konum),
+              seo (SeoService), schema (SchemaService + builders)
+              (ileride: supabase, analytics, guards)
   shared/     layout (header/footer), ui (spinner, skeleton, empty-state),
-              components (taxi-card, business-list), utils (phone, directions, date)
-  features/   home, taxis, taxi-detail, locations, services, business-submit,
-              legal, dashboard, not-found
+              components (taxi-card, business-list, breadcrumb),
+              utils (phone, directions, date)
+  features/   home, taxis, taxi-detail, locations, services, landing,
+              business-submit, legal, dashboard, not-found
+src/seo/      sitemap.ts (saf fonksiyonlar — server.ts'in Express route'ları kullanır)
 src/styles/   tokens.css, reset.css
 src/environments/  ortam modeli + üretilen dosya (gitignore'da)
 scripts/      generate-env.mjs, rls-test.mjs
@@ -169,6 +173,28 @@ Her route'un modu `src/app/app.routes.server.ts` içinde tanımlıdır:
 `app.routes.server.spec.ts`, her istemci route'unun bir sunucu karşılığı olduğunu
 ve modların/başlıkların doğru olduğunu test eder — yeni route eklerken bu test
 unutulan yapılandırmayı yakalar.
+
+---
+
+## SEO
+
+Her sayfa kendi `SeoService.setPage()` çağrısıyla title/description/canonical/OG/Twitter/robots'u
+birlikte ayarlar (`core/seo/seo.service.ts`) — route config'inde ayrı bir `title:` alanı yok,
+tek doğruluk kaynağı bu servis. `core/schema/schema.service.ts` JSON-LD `<script>` bloklarını
+yönetir (breadcrumb, ItemList, LocalBusiness, site geneli Organization/WebSite); üreticiler
+(`core/schema/builders.ts`) saf fonksiyonlardır ve HTML'de görünmeyen hiçbir bilgiyi schema'ya
+yazmaz (telefon/adres/çalışma saati yoksa alan hiç eklenmez).
+
+`/sitemap.xml` ve `/robots.txt` Angular route'u DEĞİL — `server.ts`'te Angular'dan önce
+tanımlanan düz Express route'ları (`src/seo/sitemap.ts`). Sitemap anon anahtarla PostgREST'e
+gider; yalnızca zaten public olan veriyi (aktif işletmeler, bölge/hizmet sayfaları, yalnızca
+`is_indexable=true` olan landing page'ler) listeler. `robots.txt` production dışında her zaman
+`Disallow: /` — `<meta name="robots">` seviyesindeki `noindex`'in ikinci, bağımsız güvenlik ağı.
+
+Bulunamayan `/taksi/:slug` istekleri kör 404 dönmez: `resolve_missing_business_slug` RPC'si
+slug taşınmışsa **301** (+ `Location` header), işletme kalıcı kaldırılmışsa **410**, hiç var
+olmamışsa **404** döndürür — hepsi gerçek HTTP durum koduyla, `taxi-detail-page.spec.ts`'te
+`HttpTestingController` ile kanıtlanmıştır.
 
 ---
 

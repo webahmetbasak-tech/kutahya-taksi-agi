@@ -1,5 +1,6 @@
-import { Component } from '@angular/core';
-import { RouterLink } from '@angular/router';
+import { Component, inject } from '@angular/core';
+import { Router, RouterLink } from '@angular/router';
+import { SeoService } from '@core/seo/seo.service';
 
 /**
  * 404 sayfası.
@@ -48,4 +49,16 @@ import { RouterLink } from '@angular/router';
     }
   `,
 })
-export class NotFoundPage {}
+export class NotFoundPage {
+  private readonly seo = inject(SeoService);
+  private readonly router = inject(Router);
+
+  constructor() {
+    this.seo.setPage({
+      title: 'Sayfa bulunamadı — Kütahya Taksi Ağı',
+      description: 'Aradığınız sayfa bulunamadı.',
+      path: this.router.url,
+      noindex: true,
+    });
+  }
+}

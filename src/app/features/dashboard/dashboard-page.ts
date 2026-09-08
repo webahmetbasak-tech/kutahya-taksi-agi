@@ -1,6 +1,7 @@
 import { Component, inject, PLATFORM_ID, signal } from '@angular/core';
 import { isPlatformBrowser } from '@angular/common';
 import { Spinner } from '@shared/ui/spinner';
+import { SeoService } from '@core/seo/seo.service';
 
 /**
  * İşletme sahibi paneli — `/panel` (§27).
@@ -51,4 +52,15 @@ import { Spinner } from '@shared/ui/spinner';
 })
 export class DashboardPage {
   protected readonly isBrowser = signal(isPlatformBrowser(inject(PLATFORM_ID)));
+  private readonly seo = inject(SeoService);
+
+  constructor() {
+    // Kimlik doğrulama arkasındaki özel bir alan — her koşulda noindex (§54).
+    this.seo.setPage({
+      title: 'İşletme Paneli — Kütahya Taksi Ağı',
+      description: 'İşletme sahibi paneli.',
+      path: '/panel',
+      noindex: true,
+    });
+  }
 }

@@ -1,12 +1,14 @@
 import { inject, Injectable } from '@angular/core';
-import { map, type Observable } from 'rxjs';
+import { map, of, type Observable } from 'rxjs';
 import { PostgrestClient } from './postgrest.client';
 import {
   BUSINESS_CARD_FIELDS,
   BUSINESS_DETAIL_FIELDS,
   type BusinessCard,
   type BusinessDetail,
+  type BusinessHoursRow,
   type NearbyBusinessRow,
+  type SlugResolution,
 } from './models';
 
 /**
@@ -63,6 +65,37 @@ export class BusinessRepository {
   }
 
   /**
+   * Bir landing page'in hedeflediği bölge/hizmet kombinasyonundaki işletmeler.
+   *
+   * `landing_pages` en az birini zorunlu kılar (`landing_pages_has_target`
+   * kısıtı), ikisi de olabilir. İkisi de doluysa PostgREST'in çift `!inner`
+   * embed'i ile TEK sorguda kesişim alınır — iki ayrı sorgu çekip elle kesişim
+   * almaktan daha doğru (sayfalama/limit ile tutarlı kalır) ve daha hızlıdır.
+   */
+  forLandingPage(params: {
+    locationId: string | null;
+    serviceId: string | null;
+  }): Observable<BusinessCard[]> {
+    if (params.locationId && params.serviceId) {
+      return this.client
+        .list<BusinessCard>('businesses', {
+          select: `${BUSINESS_CARD_FIELDS},business_locations!inner(location_id),business_services!inner(service_id)`,
+          'business_locations.location_id': `eq.${params.locationId}`,
+          'business_services.service_id': `eq.${params.serviceId}`,
+          order: 'business_name.asc',
+        })
+        .pipe(map(sortByName));
+    }
+    if (params.locationId) {
+      return this.byLocation(params.locationId);
+    }
+    if (params.serviceId) {
+      return this.byService(params.serviceId);
+    }
+    return of([]);
+  }
+
+  /**
    * Konuma en yakın aktif işletmeler (§49 "Yakınımdaki Taksiler").
    *
    * `nearby_businesses` RPC'sini çağırır — PostGIS `ST_DWithin` bunu Faz 2'de
@@ -82,14 +115,24 @@ export class BusinessRepository {
     });
   }
 
+  /** Doğrulanmış çalışma saatleri (§75 — yalnızca gerçek kayıt varsa döner). */
+  hours(businessId: string): Observable<BusinessHoursRow[]> {
+    return this.client.list<BusinessHoursRow>('business_hours', {
+      select: 'day_of_week,opens_at,closes_at,is_24h,is_closed',
+      business_id: `eq.${businessId}`,
+      order: 'day_of_week.asc',
+    });
+  }
+
   /**
-   * Eski slug ile taşınmış işletmeyi bulur (§64).
-   * Faz 4'te 301 yönlendirmesi bunu kullanacak.
+   * Bulunamayan bir slug için 301 (taşınmış) / 410 (kaldırılmış) / 404
+   * (hiç var olmamış) ayrımı yapar (§64). Yalnızca `bySlug()` `null` döndükten
+   * SONRA, yani nadir durumda çağrılır — normal sayfa görüntülemede ekstra
+   * bir istek yapılmaz.
    */
-  currentSlugForOldSlug(oldSlug: string): Observable<{ businesses: { slug: string } } | null> {
-    return this.client.single<{ businesses: { slug: string } }>('business_slug_history', {
-      select: 'businesses(slug)',
-      old_slug: `eq.${oldSlug}`,
+  resolveMissingSlug(slug: string): Observable<SlugResolution> {
+    return this.client.rpc<SlugResolution>('resolve_missing_business_slug', {
+      target_slug: slug,
     });
   }
 }

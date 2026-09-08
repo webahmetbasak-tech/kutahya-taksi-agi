@@ -1,7 +1,8 @@
 # ARCHITECTURE.md — Kütahya Taksi Ağı
 
-> Durum: **FAZ 0 — DISCOVERY tamamlandı.** Bu belge mimari kararları ve gerekçelerini içerir.
-> Son güncelleme: 8 Eylül 2026
+> Durum: **FAZ 4 tamamlandı.** Bu belge mimari kararları ve gerekçelerini içerir; her fazda
+> güncellenir. Güncel faz durumu için: [PROJECT_PLAN.md](./PROJECT_PLAN.md)
+> Son güncelleme: 9 Eylül 2026
 
 ---
 
@@ -426,57 +427,88 @@ rakip bir işletmenin verisi okunamaz.
 
 ## 8. URL Haritası
 
+> **Durum: Faz 4'te uygulandı.**
+
 ```
 /                                   ana sayfa
 /taksi                              tüm taksiler (ItemList)
-/taksi/:slug                        işletme detayı (canonical)
-/bolge/:slug                        lokasyon sayfası (merkez, ilçe, mahalle)
+/taksi/:slug                        işletme detayı (canonical) — 301/410/404 çözümlemeli
+/bolge                              bölge listesi
+/bolge/:slug                        lokasyon sayfası (merkez, ilçe, mahalle, landmark)
+/hizmet                             hizmet listesi
 /hizmet/:slug                       hizmet sayfası (7/24, havalimanı…)
-/rehber/:slug                       rehber içerikleri
 /isletme-ekle                       "İşletmemi Yayınla"
-/taksi/:slug/sahiplen               claim akışı
-/giris  /kayit                      auth
-/panel/**                           işletme sahibi paneli (noindex)
-/admin/**                           admin (noindex)
-/gizlilik  /kvkk  /kullanim-kosullari  /iletisim  /hakkinda
-/sitemap.xml  /robots.txt  /llms.txt
+/taksi/:slug/sahiplen               claim akışı (Faz 7)
+/panel/**                           işletme sahibi paneli (Client mode, her koşulda noindex)
+/hakkinda  /gizlilik                statik içerik (Prerender)
+/:slug                              landing_pages'ten SEO sayfaları (§30) — DİĞER TÜM
+                                     route'lardan SONRA tanımlı, aksi halde onları gölgeler
+/sitemap.xml  /robots.txt           Express route'u, Angular değil
 ```
 
-**SEO landing page'leri** `landing_pages` tablosundan gelir ve kök seviyede yaşar:
-`/kutahya-taksi`, `/kutahya-taksi-numaralari`, `/kutahya-724-taksi`, `/kutahya-gece-taksi`,
-`/kutahya-otogar-taksi`, `/kutahya-havalimani-taksi`, `/zafer-havalimani-taksi`,
-`/kutahya-sehirlerarasi-taksi`, `/kutahya-universite-taksi`, `/kutahya-hastane-taksi`.
+`/rehber/:slug` ve `/llms.txt` **bilerek henüz yok** — ilki gerçek araştırılmış içerik
+gerektirir (§74, Faz 8+), ikincisi Faz 5'in kapsamı.
 
-**Canonical kararı (dikkat):** `/kutahya-taksi` ile `/taksi` aynı içeriği gösterme riski taşır.
-Karar: `/taksi` **listenin canonical'ı**; `/kutahya-taksi` ancak gerçekten farklı bir kullanıcı
-niyetini karşılayan ayrı içerikle (farklı H1, intro, sıralama, SSS) yaşarsa ayrı sayfa olur,
-aksi halde `/taksi`'ye **301** verir. Karar Faz 4'te içerik netleşince kesinleşir;
-**iki URL aynı içerikle indekslenmeyecek.**
+**SEO landing page'leri** `landing_pages` tablosundan gelir ve kök seviyede yaşar (Faz 2'de
+seed edildi, hepsi `is_published=false`): `/kutahya-724-taksi`, `/kutahya-havalimani-taksi`,
+`/zafer-havalimani-taksi`, `/kutahya-sehirlerarasi-taksi`, `/kutahya-otogar-taksi`,
+`/kutahya-universite-taksi`. `/kutahya-taksi` ve `/kutahya-gece-taksi` gibi bazı §30 örnekleri
+**bilerek eklenmedi** — bkz. aşağıdaki canonical kararı.
 
-Slug değişiminde `business_slug_history` üzerinden **301** verilir. Arşivlenen işletme **410**
-döner (§64) — 404 değil, çünkü kalıcı kaldırma sinyali daha nettir.
+**Canonical kararı — KESİNLEŞTİ (Faz 4):** Her landing page **kendi URL'sine self-canonical'dır**;
+`/taksi`'ye yönlendirilmez. Gerekçe: bir landing page ancak `landing_pages_has_target` (en az bir
+hedef) VE `min_business_count` eşiğini (varsayılan 3, `landing_page_stats.is_indexable`) geçtiğinde
+gösterilir/indexlenir — yapısal olarak `/taksi`'nin bir kopyası OLAMAZ, çünkü kendi h1/intro'su ve
+daraltılmış bir işletme alt kümesi vardır. Bu yüzden 301 yerine **eşik tabanlı `noindex`** tercih
+edildi: eşiği geçmeyen sayfa `noindex, follow` alır (yine de erişilebilir, internal linking bozulmaz)
+ve sitemap'e girmez; eşiği geçince otomatik `index, follow` olur. `/kutahya-taksi` gibi `/taksi`
+listesiyle GERÇEKTEN örtüşebilecek genel bir sayfa bu yüzden seed'e **eklenmedi** — böyle bir sayfa
+gerekirse, `/taksi`'den GERÇEKTEN farklı bir açı (ör. filtrelenmiş/özet bir görünüm) olmadan
+açılmamalı.
+
+Slug değişiminde **301 + `Location` header** döner; arşivlenen işletme **410**, hiç var olmamış
+**404** (§64) — üçü de `resolve_missing_business_slug` SQL fonksiyonu (SECURITY DEFINER,
+Faz 4 migration'ı) ile TEK sorguda ayrıştırılır ve `taxi-detail-page.ts`'te `RESPONSE_INIT.status`
+
+- `RESPONSE_INIT.headers.Location` üzerinden uygulanır. Bu ek sorgu yalnızca `bySlug()` `null`
+  döndükten SONRA (nadir yol) çalışır — normal sayfa görüntülemede performans maliyeti yoktur.
 
 ---
 
 ## 9. SEO Mimarisi
 
-- `core/seo/seo.service.ts` — her route'ta title, description, canonical, OG, Twitter, robots.
-  Route resolver'ları veriyi çektikten **sonra** çağrılır ki SSR HTML'inde doğru meta bulunsun.
-- `core/schema/` — JSON-LD üreticileri. HTML'de görünmeyen hiçbir bilgi schema'ya yazılmaz (§33, §63).
-  - Her sayfa: `WebSite` + `Organization` (root'ta bir kez), `BreadcrumbList`
-  - Liste sayfaları: `ItemList` → her item kendi canonical detay URL'sine `url` verir (§34)
-  - Detay: `TaxiService` / `LocalBusiness` — yalnızca **gerçekten sahip olduğumuz** alanlarla.
-    `aggregateRating` **yazılmaz** (review yok). `openingHours` yalnızca `business_hours` doluysa.
-    `telephone` yalnızca `phone_e164` doluysa.
-  - `FAQPage` yalnızca sayfada gerçek, görünür SSS varsa.
-- `sitemap.xml` — sunucu route'u, veritabanından üretilir; `landing_pages.is_indexable` ve aktif
-  işletme filtresine uyar. Büyüdüğünde index sitemap + alt sitemap'lere bölünür.
-- `robots.txt` — statik değil, sunucu route'u (ortam bazlı: preview `Disallow: /`, prod açık).
-  AI crawler'lar **varsayılan olarak engellenmez** (§35). Ayırt edilecek gruplar:
-  arama/erişim botları (`OAI-SearchBot`, `ChatGPT-User`, `Claude-SearchBot`, `Claude-User`,
-  `PerplexityBot`) **allow**; eğitim botları (`GPTBot`, `CCBot`, `Google-Extended`,
-  `Applebot-Extended`) proje sahibinin tercihi — hedef görünürlük olduğu için varsayılan **allow**.
-  Bu liste Faz 5'te güncel resmî dokümantasyonla tekrar doğrulanacak.
+> **Durum: Faz 4'te uygulandı.** `curl` ile SSR HTML'ine karşı 22 noktalı smoke test ile
+> doğrulandı (canonical, JSON-LD, robots, sitemap, 404/301/410 — bkz. PROJECT_PLAN.md).
+
+- `core/seo/seo.service.ts` — **her sayfa** kendi `constructor()`'ında (statik sayfalar) veya
+  veri geldiğinde (`effect()` içinde, dinamik sayfalar) `setPage()` çağırır: title, description,
+  canonical `<link>`, OG, Twitter, robots TEK metotta birlikte ayarlanır. `app.routes.ts`'teki
+  eski statik `title:` alanları KALDIRILDI — iki ayrı kaynak (route config + servis) artık yok.
+  Robots kararı üç durumludur (`index,follow` / `noindex,follow` / `noindex,nofollow`) — bkz.
+  servis içi yorum.
+- `core/schema/schema.service.ts` — JSON-LD `<script>` enjeksiyonu. HTML'de görünmeyen hiçbir
+  bilgi schema'ya yazılmaz (§33, §63). SPA navigasyonunda eski sayfanın script'leri otomatik
+  temizlenir (yeni sayfa tekrar `set()` etmediği id'ler bir sonraki `NavigationEnd`'de silinir);
+  `Organization`/`WebSite` gibi site geneli bloklar `persistent: true` ile bu temizlikten muaftır.
+  - `App` kökünde bir kez: `Organization` + `WebSite`.
+  - Liste sayfaları (`/taksi`, `/bolge/:slug`, `/hizmet/:slug`, landing page'ler): `ItemList` —
+    yalnızca sonuç varsa yazılır, boşsa `remove()` edilir; her item kendi canonical detay
+    URL'sine `url` verir (§34).
+  - Detay sayfaları: `BreadcrumbList` + `LocalBusiness`/`TaxiService` (`core/schema/builders.ts`,
+    saf fonksiyonlar — DOM'suz test edilebilir). `aggregateRating` **yazılmaz** (review yok, §17).
+    `openingHoursSpecification` yalnızca `business_hours` doluysa (§75). `telephone` yalnızca
+    `phone_e164` doluysa (§20).
+  - `FAQPage` henüz yok — sayfalarda gerçek, görünür SSS içeriği olmadan eklenmeyecek.
+- `/sitemap.xml` — **Angular route/component DEĞİL**, `server.ts`'te Angular'dan ÖNCE tanımlı
+  düz bir Express route'u (`src/seo/sitemap.ts`). Anon anahtarla PostgREST'e gider (service_role
+  gerekmez — yalnızca zaten public olan veriyi listeler). Aktif işletmeler + tüm bölge/hizmet
+  taksonomi sayfaları + yalnızca `landing_page_stats.is_indexable=true` olan landing page'ler.
+  `/panel`, `/isletme-ekle` gibi kimlik doğrulama arkası veya işlevsiz sayfalar sitemap'te YOK.
+- `/robots.txt` — aynı şekilde düz Express route'u, ortam bazlı: production DIŞI **her zaman**
+  `Disallow: /` (bu, `app.ts`'teki `noindex` meta etiketinin robots.txt seviyesindeki eşleniği —
+  iki bağımsız güvenlik ağı). Production'da `Allow: /` + `Sitemap:` direktifi. Bot bazlı ince ayar
+  (arama/erişim botlarını eğitim botlarından ayırmak — `OAI-SearchBot` vb.) Faz 5'e ertelendi;
+  güncel resmî dokümantasyon o zaman tekrar doğrulanacak.
 
 ---
 

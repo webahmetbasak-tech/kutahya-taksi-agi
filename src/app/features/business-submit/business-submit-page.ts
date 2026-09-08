@@ -1,4 +1,5 @@
-import { Component } from '@angular/core';
+import { Component, inject } from '@angular/core';
+import { SeoService } from '@core/seo/seo.service';
 
 /**
  * "İşletmemi Yayınla" — `/isletme-ekle` (§26).
@@ -40,4 +41,15 @@ import { Component } from '@angular/core';
     }
   `,
 })
-export class BusinessSubmitPage {}
+export class BusinessSubmitPage {
+  private readonly seo = inject(SeoService);
+
+  constructor() {
+    this.seo.setPage({
+      title: 'İşletmemi Yayınla — Kütahya Taksi Ağı',
+      description:
+        "Taksi işletmenizi Kütahya Taksi Ağı'na ücretsiz ekleyin, profilinizi kendiniz yönetin.",
+      path: '/isletme-ekle',
+    });
+  }
+}

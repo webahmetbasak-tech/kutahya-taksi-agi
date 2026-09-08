@@ -4,22 +4,30 @@ import type { Routes } from '@angular/router';
  * Uygulama route'ları.
  *
  * Her sayfa lazy loaded (`loadComponent`) — public kullanıcı yalnızca gördüğü
- * sayfanın kodunu indirir. `title` Angular'ın yerleşik başlık yönetimini kullanır;
- * veriye bağlı dinamik başlıklar ve meta/canonical/OG Faz 4'teki SEO motorunda
- * merkezîleşecek.
+ * sayfanın kodunu indirir.
+ *
+ * BAŞLIK/META: statik `title:` alanları BİLEREK YOK. Faz 1'de her route burada
+ * bir `title:` taşıyordu; Faz 4'te bu tek bir soruna dönüştü — sayfa hem
+ * buradan hem kendi `SeoService.setPage()` çağrısından başlık alabiliyordu,
+ * iki kaynak kolayca birbirinden sapardı. Artık HER sayfa kendi
+ * `core/seo/seo.service.ts` çağrısıyla title/description/canonical/OG/robots'u
+ * birlikte ayarlıyor — tek doğruluk kaynağı.
  *
  * URL'ler §43'e uyar: kısa, okunabilir, Türkçe karakter yok, küçük harf, tireli.
  * Render modları `app.routes.server.ts` içinde tanımlanır.
+ *
+ * `:slug` (sondan bir önceki route) DB'deki `landing_pages` tablosuna bağlı
+ * SEO sayfalarını yakalar (ör. `/kutahya-724-taksi`). Diğer tüm route'lardan
+ * SONRA tanımlı olması KRİTİKTİR — aksi halde ör. `/hakkinda` bu route'a
+ * düşer ve asla `AboutPage`'e ulaşamaz (Angular Router ilk eşleşeni kullanır).
  */
 export const routes: Routes = [
   {
     path: '',
-    title: "Kütahya Taksi Ağı — Kütahya'da Taksi Bul",
     loadComponent: () => import('@features/home/home-page').then((m) => m.HomePage),
   },
   {
     path: 'taksi',
-    title: 'Kütahya Taksileri — Kütahya Taksi Ağı',
     loadComponent: () => import('@features/taxis/taxi-list-page').then((m) => m.TaxiListPage),
   },
   {
@@ -29,7 +37,6 @@ export const routes: Routes = [
   },
   {
     path: 'bolge',
-    title: "Kütahya'daki Bölgeler — Kütahya Taksi Ağı",
     loadComponent: () =>
       import('@features/locations/location-list-page').then((m) => m.LocationListPage),
   },
@@ -40,7 +47,6 @@ export const routes: Routes = [
   },
   {
     path: 'hizmet',
-    title: 'Hizmetler — Kütahya Taksi Ağı',
     loadComponent: () =>
       import('@features/services/service-list-page').then((m) => m.ServiceListPage),
   },
@@ -51,28 +57,27 @@ export const routes: Routes = [
   },
   {
     path: 'isletme-ekle',
-    title: 'İşletmemi Yayınla — Kütahya Taksi Ağı',
     loadComponent: () =>
       import('@features/business-submit/business-submit-page').then((m) => m.BusinessSubmitPage),
   },
   {
     path: 'hakkinda',
-    title: 'Hakkında — Kütahya Taksi Ağı',
     loadComponent: () => import('@features/legal/about-page').then((m) => m.AboutPage),
   },
   {
     path: 'gizlilik',
-    title: 'Gizlilik — Kütahya Taksi Ağı',
     loadComponent: () => import('@features/legal/privacy-page').then((m) => m.PrivacyPage),
   },
   {
     path: 'panel',
-    title: 'İşletme Paneli — Kütahya Taksi Ağı',
     loadComponent: () => import('@features/dashboard/dashboard-page').then((m) => m.DashboardPage),
   },
   {
+    path: ':slug',
+    loadComponent: () => import('@features/landing/landing-page').then((m) => m.LandingPage),
+  },
+  {
     path: '**',
-    title: 'Sayfa bulunamadı — Kütahya Taksi Ağı',
     loadComponent: () => import('@features/not-found/not-found-page').then((m) => m.NotFoundPage),
   },
 ];

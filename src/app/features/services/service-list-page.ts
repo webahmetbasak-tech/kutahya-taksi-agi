@@ -3,6 +3,7 @@ import { rxResource } from '@angular/core/rxjs-interop';
 import { RouterLink } from '@angular/router';
 import { ServiceRepository } from '@core/data/service.repository';
 import { Skeleton } from '@shared/ui/skeleton';
+import { SeoService } from '@core/seo/seo.service';
 
 /**
  * Hizmet listesi — `/hizmet` (§10, §42).
@@ -87,8 +88,17 @@ import { Skeleton } from '@shared/ui/skeleton';
 })
 export class ServiceListPage {
   private readonly repo = inject(ServiceRepository);
+  private readonly seo = inject(SeoService);
 
   protected readonly services = rxResource({
     stream: () => this.repo.list(),
   });
+
+  constructor() {
+    this.seo.setPage({
+      title: 'Hizmetler — Kütahya Taksi Ağı',
+      description: "Kütahya'daki taksi işletmelerinin sunduğu hizmet türleri.",
+      path: '/hizmet',
+    });
+  }
 }

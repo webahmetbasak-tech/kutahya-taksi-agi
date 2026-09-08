@@ -1,18 +1,24 @@
-import { Component, inject } from '@angular/core';
+import { Component, effect, inject } from '@angular/core';
 import { rxResource } from '@angular/core/rxjs-interop';
 import { RouterLink } from '@angular/router';
 import { BusinessRepository } from '@core/data/business.repository';
 import { BusinessList } from '@shared/components/business-list';
+import { SeoService } from '@core/seo/seo.service';
+import { SchemaService } from '@core/schema/schema.service';
+import { buildItemList } from '@core/schema/builders';
+import { absoluteUrl } from '@env';
 
 /**
- * Taksi listesi — `/taksi` (§23).
+ * Taksi listesi — `/taksi` (§23). Bu sayfanın canonical'ı KENDİSİDİR
+ * (ARCHITECTURE.md §8) — `/kutahya-taksi` gibi SEO landing page'leri (§30)
+ * ayrı, kendi içeriğine sahip sayfalardır, buraya yönlendirilmez.
  *
  * Veri `rxResource` ile çekilir: SSR sırasında istek tamamlanana kadar render
  * beklenir (Angular'ın pending-task mekanizması), tarayıcıda ise hydration
- * `HttpClient` transfer cache'i sayesinde isteği TEKRARLAMAZ (ARCHITECTURE.md §4).
+ * elle uygulanan TransferState sayesinde isteği TEKRARLAMAZ (ARCHITECTURE.md §4).
  *
- * Filtre/sayfalama Faz 4'te (SEO ile birlikte URL query param'ları netleşince)
- * eklenecek — MVP'de tüm aktif işletmeler tek sayfada.
+ * Filtre/sayfalama ileride (URL query param'ları netleşince) eklenecek —
+ * MVP'de tüm aktif işletmeler tek sayfada.
  */
 @Component({
   selector: 'app-taxi-list-page',
@@ -45,8 +51,34 @@ import { BusinessList } from '@shared/components/business-list';
 })
 export class TaxiListPage {
   private readonly repo = inject(BusinessRepository);
+  private readonly seo = inject(SeoService);
+  private readonly schema = inject(SchemaService);
 
   protected readonly businesses = rxResource({
     stream: () => this.repo.list(),
   });
+
+  constructor() {
+    this.seo.setPage({
+      title: 'Kütahya Taksileri — Kütahya Taksi Ağı',
+      description:
+        "Kütahya'daki doğrulanmış taksi işletmelerinin tam listesi. Telefon, WhatsApp ve yol tarifi tek tıkla.",
+      path: '/taksi',
+    });
+
+    effect(() => {
+      const list = this.businesses.value();
+      if (list && list.length > 0) {
+        // §34: her öğe kendi canonical detay URL'sine işaret eder.
+        this.schema.set(
+          'itemlist',
+          buildItemList(
+            list.map((b) => ({ name: b.business_name, url: absoluteUrl(`/taksi/${b.slug}`) })),
+          ),
+        );
+      } else {
+        this.schema.remove('itemlist');
+      }
+    });
+  }
 }

@@ -7,6 +7,7 @@ import { ServiceRepository } from '@core/data/service.repository';
 import { GeolocationService } from '@core/geo/geolocation.service';
 import { BusinessList } from '@shared/components/business-list';
 import { Skeleton } from '@shared/ui/skeleton';
+import { SeoService } from '@core/seo/seo.service';
 
 /**
  * Ana sayfa (§21, §22).
@@ -209,6 +210,16 @@ export class HomePage {
   private readonly serviceRepo = inject(ServiceRepository);
   private readonly geolocation = inject(GeolocationService);
   private readonly router = inject(Router);
+  private readonly seo = inject(SeoService);
+
+  constructor() {
+    this.seo.setPage({
+      title: "Kütahya Taksi Ağı — Kütahya'da Taksi Bul",
+      description:
+        "Kütahya'daki taksi işletmelerini tek yerde keşfedin. Telefon, WhatsApp ve yol tarifi tek tıkla.",
+      path: '/',
+    });
+  }
 
   protected readonly businesses = rxResource({
     stream: () => this.businessRepo.list(12),

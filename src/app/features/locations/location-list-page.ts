@@ -3,6 +3,7 @@ import { rxResource } from '@angular/core/rxjs-interop';
 import { RouterLink } from '@angular/router';
 import { LocationRepository } from '@core/data/location.repository';
 import { Skeleton } from '@shared/ui/skeleton';
+import { SeoService } from '@core/seo/seo.service';
 
 /**
  * Bölge listesi — `/bolge` (§12, §42).
@@ -80,8 +81,17 @@ import { Skeleton } from '@shared/ui/skeleton';
 })
 export class LocationListPage {
   private readonly repo = inject(LocationRepository);
+  private readonly seo = inject(SeoService);
 
   protected readonly districts = rxResource({
     stream: () => this.repo.districts(),
   });
+
+  constructor() {
+    this.seo.setPage({
+      title: "Kütahya'daki Bölgeler — Kütahya Taksi Ağı",
+      description: 'Kütahya merkez ve ilçelerine göre taksi işletmelerini keşfedin.',
+      path: '/bolge',
+    });
+  }
 }

@@ -753,6 +753,16 @@ export type Database = {
         Args: { retention_days?: number };
         Returns: number;
       };
+      resolve_missing_business_slug: {
+        Args: { target_slug: string };
+        Returns: Database['public']['CompositeTypes']['slug_resolution'];
+        SetofOptions: {
+          from: '*';
+          to: 'slug_resolution';
+          isOneToOne: true;
+          isSetofReturn: false;
+        };
+      };
       rollup_analytics_daily: { Args: { target_day?: string }; Returns: number };
     };
     Enums: {
@@ -788,7 +798,10 @@ export type Database = {
       verification_status: 'unverified' | 'pending' | 'verified' | 'owner_claimed';
     };
     CompositeTypes: {
-      [_ in never]: never;
+      slug_resolution: {
+        outcome: string | null;
+        new_slug: string | null;
+      };
     };
   };
 };

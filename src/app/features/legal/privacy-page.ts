@@ -1,4 +1,5 @@
-import { Component } from '@angular/core';
+import { Component, inject } from '@angular/core';
+import { SeoService } from '@core/seo/seo.service';
 
 /**
  * `/gizlilik` — prerender edilir.
@@ -56,4 +57,17 @@ import { Component } from '@angular/core';
     }
   `,
 })
-export class PrivacyPage {}
+export class PrivacyPage {
+  private readonly seo = inject(SeoService);
+
+  constructor() {
+    this.seo.setPage({
+      title: 'Gizlilik — Kütahya Taksi Ağı',
+      description: 'Kütahya Taksi Ağı gizlilik ve veri toplama ilkeleri.',
+      path: '/gizlilik',
+      // Metin taslak (bkz. yukarıdaki not) — nihai hukuki inceleme tamamlanana
+      // kadar arama sonuçlarında görünmemeli.
+      noindex: true,
+    });
+  }
+}

@@ -4,6 +4,8 @@ import { RouterOutlet } from '@angular/router';
 import { SiteHeader } from '@shared/layout/site-header';
 import { SiteFooter } from '@shared/layout/site-footer';
 import { APP_CONFIG } from '@core/config/app-config';
+import { SchemaService } from '@core/schema/schema.service';
+import { buildOrganization, buildWebSite } from '@core/schema/builders';
 
 @Component({
   selector: 'app-root',
@@ -35,6 +37,7 @@ import { APP_CONFIG } from '@core/config/app-config';
 export class App {
   private readonly config = inject(APP_CONFIG);
   private readonly meta = inject(Meta);
+  private readonly schema = inject(SchemaService);
 
   constructor() {
     // Production dışı her ortam (development, Vercel preview) indekslenmez.
@@ -42,5 +45,12 @@ export class App {
     if (!this.config.production) {
       this.meta.updateTag({ name: 'robots', content: 'noindex, nofollow' });
     }
+
+    // Site geneli kimlik: bir kez, uygulama ömrü boyunca. `persistent: true`
+    // olmadan bu bloklar ilk sayfa navigasyonunda silinirdi (bkz. schema.service.ts).
+    this.schema.set('organization', buildOrganization(this.config.siteUrl), {
+      persistent: true,
+    });
+    this.schema.set('website', buildWebSite(this.config.siteUrl), { persistent: true });
   }
 }

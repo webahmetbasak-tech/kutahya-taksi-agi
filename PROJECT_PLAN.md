@@ -1,6 +1,6 @@
 # PROJECT_PLAN.md — Kütahya Taksi Ağı
 
-> Durum: **FAZ 3 tamamlandı.** Sıradaki: FAZ 4 — SEO Engine.
+> Durum: **FAZ 4 tamamlandı.** Sıradaki: FAZ 5 — GEO / AI Search Layer.
 > Son güncelleme: 9 Eylül 2026
 
 Mimari kararlar ve gerekçeleri için: [ARCHITECTURE.md](./ARCHITECTURE.md)
@@ -260,15 +260,56 @@ isteği yapmadan) kanıtlandı. Bu, Faz 1'deki `allowedHosts` bulgusuyla aynı k
 "kontrol edilmeden varsayılmasın" dersi — mimari dokümanda yazılı bir iddia, gerçek bir SSR
 sunucusuna karşı `curl` ve `ng-state` incelemesiyle doğrulanana kadar kanıtlanmış sayılmadı.
 
-### FAZ 4 — SEO Engine
+### FAZ 4 — SEO Engine ✅ TAMAMLANDI
 
-`SeoService`, JSON-LD üreticileri, breadcrumb, dinamik `sitemap.xml`, ortam-duyarlı
-`robots.txt`, canonical politikası (`/taksi` vs `/kutahya-taksi` kararının kesinleştirilmesi),
-`business_slug_history` → 301, arşiv → 410, internal linking.
+`SeoService`, JSON-LD üreticileri (breadcrumb/itemlist/localbusiness/organization/website),
+`Breadcrumb` bileşeni, dinamik `sitemap.xml`, ortam-duyarlı `robots.txt`, canonical politikası
+kesinleşti, `business_slug_history` → 301, arşiv → 410, `landing_pages` sayfa render'ı,
+internal linking (breadcrumb + ItemList URL'leri).
 
-**DoD:** §62 checklist'i her sayfa tipi için geçiyor · JSON-LD validator temiz ·
-schema ↔ HTML tutarlılık testi geçiyor · sitemap yalnızca indexable URL içeriyor ·
-preview ortamı `Disallow: /` veriyor.
+**DoD durumu:**
+
+| Kriter                                                  | Durum                                                                                      |
+| ------------------------------------------------------- | ------------------------------------------------------------------------------------------ |
+| Her sayfa title/description/canonical/OG/robots taşıyor | ✅ 13 sayfa `SeoService.setPage()` çağırıyor                                               |
+| JSON-LD, HTML'de görünmeyen bilgi içermiyor             | ✅ builders.ts testleriyle kanıtlandı (telefon/adres/saat yoksa alan hiç yazılmıyor)       |
+| sitemap yalnızca indexable URL içeriyor                 | ✅ `/panel`, `/isletme-ekle` yok; landing page'ler yalnızca `is_indexable=true` iken girer |
+| preview/dev ortamı `Disallow: /` veriyor                | ✅ hem `robots.txt` hem `<meta name="robots">` seviyesinde (iki bağımsız güvenlik ağı)     |
+| 301/410/404 ayrımı gerçek HTTP durumuyla çalışıyor      | ✅ `resolve_missing_business_slug` RPC + `RESPONSE_INIT`, birim testle kanıtlandı          |
+| Gerçek 404 sayfası tüm bulunamadı durumlarında tutarlı  | ✅ (aşağıdaki bulguya bakın)                                                               |
+
+**Canonical kararı kesinleşti:** Her landing page kendi URL'sine self-canonical'dır; `/taksi`'ye
+301 verilmez. Gerekçe ve ayrıntı: ARCHITECTURE.md §8. `/kutahya-taksi` gibi `/taksi` ile
+GERÇEKTEN örtüşebilecek genel bir sayfa seed'e bilerek eklenmedi.
+
+**301/410/404 nasıl çözülüyor:** `resolve_missing_business_slug(target_slug)` SQL fonksiyonu
+(SECURITY DEFINER, Faz 4 migration'ı) `bySlug()` `null` döndükten SONRA çağrılır ve TEK sorguda
+üç durumu ayırt eder: slug taşınmış + hedef hâlâ aktifse `redirect` (`taxi-detail-page.ts`
+`RESPONSE_INIT.status=301` + `headers.Location` yazar), işletme `archived` ise `410`, hiçbiri
+değilse `not_found` → `404`. Fonksiyon yalnızca sınıflandırma döner, işletme verisi sızdırmaz —
+`is_admin()` ile aynı SECURITY DEFINER gerekçesi. `taxi-detail-page.spec.ts` dört senaryoyu da
+(bulundu/redirect/archived/not_found) `HttpTestingController` ile uçtan uca kanıtlıyor.
+
+### Faz 4'te bulunan ve düzeltilen gerçek hatalar
+
+**1. `:slug` route'u gerçek 404 sayfasını gölgeliyordu.** `landing_pages` sayfalarını yakalamak
+için eklenen `:slug` route'u (tüm sabit route'lardan sonra, `**`'den önce) tek segmentli HER
+path'i yakalıyor — bu da rastgele bir URL'nin (`/olmayan-999`) asla gerçek `**` wildcard'ına
+(markalı `NotFoundPage`) düşmediği, bunun yerine `LandingPage`'in kendi sade "bulunamadı" metnini
+gösterdiği anlamına geliyordu. `curl` ile karşılaştırmalı test edilerek yakalandı. Çözüm:
+`LandingPage`'in bulunamadı dalı artık `<app-not-found-page>`'i doğrudan yeniden kullanıyor —
+kullanıcı her zaman aynı, markalı 404'ü görüyor; HTTP durumu yine `LandingPage`'in kendi
+`RESPONSE_INIT` mantığından geliyor (`NotFoundPage` durum kodu ayarlamaz).
+
+**2. Angular'ın yerleşik `withHttpTransferCacheOptions`'ı bu sürümde hiç çalışmıyordu.**
+Bu, Faz 3'te bulundu ve orada elle `TransferState` ile çözüldü; Faz 4'te
+`includeRequestsWithAuthHeaders: true` eklendi (upstream düzeltildiğinde ikinci bir koruma
+katmanı olarak). Ayrıntı: PROJECT_PLAN.md Faz 3 notu, ARCHITECTURE.md §4.
+
+**Açık kalan:** JSON-LD çıktısı harici bir schema.org/Rich Results doğrulayıcısına henüz
+gönderilmedi (canlı bir URL gerektiriyor, henüz yok — Faz 12'de Search Console kurulumuyla
+birlikte yapılacak). Kod tarafında yapı doğru (testlerle kanıtlandı) ama üçüncü parti
+doğrulama bekliyor.
 
 ### FAZ 5 — GEO / AI Search Layer
 

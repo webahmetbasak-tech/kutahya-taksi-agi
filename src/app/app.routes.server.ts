@@ -78,6 +78,13 @@ export const serverRoutes: ServerRoute[] = [
     headers: { 'Cache-Control': 'private, no-store' },
   },
   {
+    // landing_pages tablosundan gelen SEO sayfaları (ör. /kutahya-724-taksi).
+    // Durum kodu (200/404) component'in kendi RESPONSE_INIT mantığından gelir.
+    path: ':slug',
+    renderMode: RenderMode.Server,
+    headers: { 'Cache-Control': PUBLIC_CACHE },
+  },
+  {
     // Bilinmeyen URL'ler gerçek 404 döner — "soft 404" oluşmaz (§64).
     path: '**',
     renderMode: RenderMode.Server,

@@ -1,5 +1,6 @@
-import { Component } from '@angular/core';
+import { Component, inject } from '@angular/core';
 import { RouterLink } from '@angular/router';
+import { SeoService } from '@core/seo/seo.service';
 
 /**
  * `/hakkinda` — statik içerik, `RenderMode.Prerender` ile build zamanında üretilir.
@@ -54,4 +55,15 @@ import { RouterLink } from '@angular/router';
     }
   `,
 })
-export class AboutPage {}
+export class AboutPage {
+  private readonly seo = inject(SeoService);
+
+  constructor() {
+    this.seo.setPage({
+      title: 'Hakkında — Kütahya Taksi Ağı',
+      description:
+        'Kütahya Taksi Ağı nasıl çalışır, bilgilerin doğruluğu nasıl sağlanır ve işletme sahipleri neler yapabilir.',
+      path: '/hakkinda',
+    });
+  }
+}
