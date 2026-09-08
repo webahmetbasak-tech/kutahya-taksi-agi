@@ -4,6 +4,7 @@ import { provideHttpClient } from '@angular/common/http';
 import { provideHttpClientTesting, HttpTestingController } from '@angular/common/http/testing';
 import { PostgrestClient } from './postgrest.client';
 import { APP_CONFIG } from '@core/config/app-config';
+import { AuthTokenStore } from '@core/auth/auth-token-store';
 import type { AppEnvironment } from '@env';
 
 const config: AppEnvironment = {
@@ -39,6 +40,18 @@ describe('PostgrestClient', () => {
 
     expect(req.request.headers.get('apikey')).toBe('anon-test-key');
     expect(req.request.headers.get('Authorization')).toBe('Bearer anon-test-key');
+    req.flush([]);
+  });
+
+  it('oturum açıkken apikey anon anahtar kalır ama Authorization kullanıcının JWT\'si olur (RLS "to authenticated" için şart)', () => {
+    const tokenStore = TestBed.inject(AuthTokenStore);
+    tokenStore.set('user-jwt-abc');
+
+    client.list('businesses').subscribe();
+
+    const req = http.expectOne((r) => r.url === 'https://project.supabase.co/rest/v1/businesses');
+    expect(req.request.headers.get('apikey')).toBe('anon-test-key');
+    expect(req.request.headers.get('Authorization')).toBe('Bearer user-jwt-abc');
     req.flush([]);
   });
 

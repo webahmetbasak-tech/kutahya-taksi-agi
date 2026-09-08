@@ -20,6 +20,8 @@ export type Business = Tables['businesses']['Row'];
 export type BusinessMedia = Tables['business_media']['Row'];
 export type BusinessHours = Tables['business_hours']['Row'];
 export type AnalyticsDaily = Tables['analytics_daily']['Row'];
+export type Claim = Tables['claims']['Row'];
+export type ClaimInsert = Tables['claims']['Insert'];
 export type LandingPageStats = Views['landing_page_stats']['Row'];
 export type NearbyBusinessRow = Functions['nearby_businesses']['Returns'][number];
 
@@ -149,3 +151,15 @@ export type BusinessHoursRow = Pick<
 
 /** Panel istatistik satırı — RLS (`analytics_daily_select_own`) yalnızca sahibine/admin'e açar. */
 export type AnalyticsDailyRow = Pick<AnalyticsDaily, 'day' | 'event_type' | 'event_count'>;
+
+/** Panelde "işletmelerim" listesi — RLS (`businesses_select_own`) yalnızca sahibine açar. */
+export type OwnedBusinessRow = Pick<
+  Business,
+  'id' | 'slug' | 'business_name' | 'status' | 'verification_status' | 'plan'
+>;
+
+/** Panelde "sahiplenme taleplerim" listesi — RLS (`claims_select_own`) yalnızca sahibine/admin'e açar. */
+export type ClaimRow = Pick<
+  Claim,
+  'id' | 'business_id' | 'status' | 'verification_method' | 'submitted_at' | 'reviewer_note'
+>;

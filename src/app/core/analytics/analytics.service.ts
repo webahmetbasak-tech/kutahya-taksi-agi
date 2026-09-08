@@ -1,29 +1,19 @@
 import { inject, Injectable, PLATFORM_ID } from '@angular/core';
 import { DOCUMENT, isPlatformBrowser } from '@angular/common';
 import { APP_CONFIG } from '@core/config/app-config';
+import type { AnalyticsEventType as DbAnalyticsEventType } from '@core/data/models';
 import { isLikelyBot } from './bot-detection';
 
 const SESSION_STORAGE_KEY = 'kta_session_id';
 
 /**
- * `analytics_events` tablosunun `analytics_event_type` enum'una karşılık gelir
- * (bkz. `supabase/migrations/20260908150000_extensions_and_enums.sql`).
- *
- * `claim_started`/`claim_completed` Faz 7'de, `listing_submitted` Faz 8'de
- * istemci tarafından tetiklenecek. `listing_approved` yalnızca admin onayında
- * SUNUCU (Postgres trigger/admin action) tarafından yazılır — bu istemci
+ * `analytics_event_type` DB enum'unun istemcinin göndermesine izin verilen alt
+ * kümesi (`models.ts`teki `AnalyticsEventType` şemadan türer — burada elle
+ * TEKRARLANMAZ). `listing_approved` HARİÇ TUTULUR: yalnızca admin onayında
+ * SUNUCU (Postgres trigger/admin action) tarafından yazılır, istemci
  * servisinden asla gönderilmez.
  */
-export type AnalyticsEventType =
-  | 'profile_view'
-  | 'call_click'
-  | 'whatsapp_click'
-  | 'directions_click'
-  | 'website_click'
-  | 'claim_started'
-  | 'claim_completed'
-  | 'listing_submitted'
-  | 'search_performed';
+export type AnalyticsEventType = Exclude<DbAnalyticsEventType, 'listing_approved'>;
 
 /**
  * `analytics_events_business_required` CHECK kısıtı işletmeye bağlı olmayan

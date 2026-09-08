@@ -37,6 +37,12 @@ export const serverRoutes: ServerRoute[] = [
     headers: { 'Cache-Control': PUBLIC_CACHE },
   },
   {
+    // Oturuma bağlı, kişiye özel; sunucuda render edilmez (bkz. 'panel').
+    path: 'taksi/:slug/sahiplen',
+    renderMode: RenderMode.Client,
+    headers: { 'Cache-Control': 'private, no-store' },
+  },
+  {
     path: 'bolge',
     renderMode: RenderMode.Server,
     headers: { 'Cache-Control': PUBLIC_CACHE },
@@ -74,6 +80,12 @@ export const serverRoutes: ServerRoute[] = [
   {
     // Panel kimlik doğrulama arkasında; sunucuda render edilmez, cache'lenmez.
     path: 'panel',
+    renderMode: RenderMode.Client,
+    headers: { 'Cache-Control': 'private, no-store' },
+  },
+  {
+    // Oturum durumu istemciye özgüdür; sunucuda render edilmez.
+    path: 'giris',
     renderMode: RenderMode.Client,
     headers: { 'Cache-Control': 'private, no-store' },
   },

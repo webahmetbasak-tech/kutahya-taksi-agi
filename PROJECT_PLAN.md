@@ -1,6 +1,6 @@
 # PROJECT_PLAN.md — Kütahya Taksi Ağı
 
-> Durum: **FAZ 6 tamamlandı.** Sıradaki: FAZ 7 — Claim Flow.
+> Durum: **FAZ 7 tamamlandı.** Sıradaki: FAZ 8 — Business Submission.
 > Son güncelleme: 9 Eylül 2026
 
 Mimari kararlar ve gerekçeleri için: [ARCHITECTURE.md](./ARCHITECTURE.md)
@@ -117,6 +117,22 @@ kararıdır (§80, §81) — mimari `categories` ve `locations` ile şehir/dikey
 
 Google/ChatGPT/Gemini'de sıralama garantisi **verilmeyecek** (§73, §77). Taksiciye yönelik
 tüm metinler bu kurala göre yazılacak ve Faz 11'de metin denetimi yapılacak.
+
+### R9 — İlk admin'i bootstrap etmenin dokümante edilmiş bir yolu yok (Faz 7'de canlıda keşfedildi, ORTA)
+
+`profiles_protect_role` trigger'ı `role` kolonunu DEĞİŞTİREN her UPDATE'i `is_admin()` DEĞİLSE
+reddeder — bu KASITLI bir korumadır (bir kullanıcı kendini admin yapamasın diye), ama bunun
+istenmeyen bir sonucu var: sistemde HENÜZ HİÇ admin yokken (bugünkü canlı durum) bu korumayı
+"meşru" şekilde aşacak hiçbir yol yok — `service_role` anahtarı bile RLS'i atlar ama trigger'ı
+ATLAMAZ (trigger `is_admin()`'i koşulsuz çağırır, çağıran rolden bağımsız). Faz 7'de
+`apply_approved_claim()` trigger zincirini canlıda doğrularken (bkz. bu fazın raporu) bunu
+`alter table profiles disable trigger profiles_protect_role` ile GEÇİCİ olarak atlayıp, testi bir
+`rollback`'e sararak keşfettim — production'da bu manevrayı kimse manuel yapmamalı.
+**Azaltma (Faz 9'da çözülecek):** ya (a) `supabase/seed.sql`'e superuser bağlamında çalışan
+tek seferlik bir "ilk admin" INSERT/UPDATE'i eklenir (migration değil, migration geçmişi
+production'da tekrar çalışmaz), ya da (b) trigger'a `current_setting('role') = 'postgres'` gibi
+superuser bağlamı için AÇIK bir istisna eklenir. Şimdilik bilinen, dokümante edilmiş bir boşluk;
+gerçek kullanıcı verisi yokken (R1) aciliyeti düşük.
 
 ---
 
@@ -377,13 +393,43 @@ SSR event üretmiyor · rollup doğru sayıyor (canlıda doğrulandı) · 90 gü
 kayıtlarda PII yok · 108/108 unit test geçiyor · gerçek SSR build + canlı Supabase'e karşı
 smoke test geçti.
 
-### FAZ 7 — Claim Flow
+### FAZ 7 — Claim Flow ✅ TAMAMLANDI (9 Eylül 2026)
 
 "Bu işletme size mi ait?" → auth → doğrulama (`manual_admin`) → claim → admin review →
 owner dashboard. `claim_started` / `claim_completed` event'leri.
 
-**DoD:** bir işletme iki kez sahiplenilemez · reddedilen claim tekrar denenebilir ·
-owner yalnızca izinli kolonları güncelleyebiliyor (RLS testi) · e2e akış testi geçiyor.
+**Yapılanlar:**
+- `AuthService`/`AuthTokenStore` (`src/app/core/auth/`) — `@supabase/supabase-js` YALNIZCA lazy
+  auth/panel/sahiplen chunk'larında (ARCHITECTURE.md §4 planına uygun; canlı build'de doğrulandı —
+  `createClient` main bundle'da YOK). `PostgrestClient` artık oturum açıkken kullanıcının JWT'sini
+  `Authorization` başlığında gönderiyor (`apikey` her zaman anon anahtar) — bu değişiklik olmadan
+  `to authenticated` RLS politikaları (businesses_select_own, claims_select_own,
+  analytics_daily_select_own) hiç devreye giremezdi.
+- `/giris` (giriş+kayıt tek sayfa), `/taksi/:slug/sahiplen` (claim formu), `/panel` (artık gerçek
+  içerik: sahip olunan işletmeler + durumları + son 30 gün istatistikleri + talep geçmişi).
+  Üçü de `RenderMode.Client`, gerçek SSR curl testiyle doğrulandı (200, sunucu HTML'inde auth
+  içeriği YOK).
+- İlk kez Signal Forms (`@angular/forms/signals`) kullanıldı — `form()`/`required()`/`email()`/
+  `minLength()`/`validate()`/`FormField` — canlı API yüzeyi node_modules'teki `.d.ts`'lerden
+  doğrulanarak yazıldı, unit testlerle (gerçek DOM input event'leriyle) kanıtlandı.
+  `styles.css`'e `.field`/`.form-banner` ilkel form stilleri eklendi (ilk gerçek form).
+- **Canlıda keşfedilen gerçek davranış:** Supabase Auth bu projede e-posta onayını ZORUNLU
+  kılıyor — `signUp()` başarıyla dönse bile oturum hemen açılmaz. `AuthService`/`AuthPage` bunu
+  `confirmed:boolean` ile ayırt ediyor, kayıt sonrası "e-postanızı kontrol edin" mesajı gösteriyor.
+  Doğrulama: gerçek Auth REST uç noktasına curl ile test kaydı açıldı (kod: `email_not_confirmed`).
+- `apply_approved_claim()` trigger zinciri (claim onayı → `businesses.owner_id`/
+  `verification_status='owner_claimed'`/`claimed_at` senkronu) canlı Supabase'e karşı, tamamı bir
+  `rollback`'e sarılmış bir transaction içinde uçtan uca doğrulandı — hiçbir kalıcı veri
+  bırakılmadı (bkz. R9: bu doğrulama sırasında `profiles_protect_role` trigger'ının ilk admin'i
+  bootstrap etmeyi de engellediği keşfedildi, Faz 9 için not edildi).
+- `translateAuthError()` — Supabase Auth'un makine-okunur `error.code`'una göre (mesaj metnine
+  göre DEĞİL) Türkçe çeviri; kapsanmayan kod için jenerik ama dürüst mesaj.
+
+**DoD:** bir işletme iki kez sahiplenilemez (DB: `owner_id is not null` kontrolü + unique index,
+canlıda doğrulandı) · reddedilen claim tekrar denenebilir (ClaimPage yalnızca pending/approved'da
+formu gizler) · owner yalnızca izinli kolonları güncelleyebiliyor (`protect_business_admin_columns`
+Faz 2'den beri var, bu fazda değişmedi) · e2e akış testi geçiyor (canlı DB'de trigger zinciri +
+146/146 unit test) · `SUPABASE_SERVICE_ROLE_KEY` hâlâ yok, bazı RLS fixture testleri hâlâ atlanıyor.
 
 ### FAZ 8 — Business Submission
 

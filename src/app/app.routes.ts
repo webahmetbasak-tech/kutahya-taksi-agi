@@ -36,6 +36,10 @@ export const routes: Routes = [
       import('@features/taxi-detail/taxi-detail-page').then((m) => m.TaxiDetailPage),
   },
   {
+    path: 'taksi/:slug/sahiplen',
+    loadComponent: () => import('@features/claim/claim-page').then((m) => m.ClaimPage),
+  },
+  {
     path: 'bolge',
     loadComponent: () =>
       import('@features/locations/location-list-page').then((m) => m.LocationListPage),
@@ -71,6 +75,10 @@ export const routes: Routes = [
   {
     path: 'panel',
     loadComponent: () => import('@features/dashboard/dashboard-page').then((m) => m.DashboardPage),
+  },
+  {
+    path: 'giris',
+    loadComponent: () => import('@features/auth/auth-page').then((m) => m.AuthPage),
   },
   {
     path: ':slug',

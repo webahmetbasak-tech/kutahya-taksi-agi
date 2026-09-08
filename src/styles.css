@@ -177,6 +177,73 @@
   color: var(--c-warning);
 }
 
+.badge--danger {
+  background-color: var(--c-danger-soft);
+  color: var(--c-danger);
+}
+
+/* --- Form alanları (Faz 7'de eklendi: giriş/kayıt/sahiplenme formları) ------
+ * Signal Forms (`@angular/forms/signals`) `[formField]` ile bağlanan native
+ * `<input>`/`<textarea>` elemanları burada biçimlendirilir — kütüphane kendi
+ * stilini getirmez.
+ */
+
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-1);
+}
+
+.field + .field {
+  margin-block-start: var(--sp-4);
+}
+
+.field__label {
+  font-size: var(--fs-sm);
+  font-weight: var(--fw-medium);
+}
+
+.field__input {
+  min-height: var(--tap-min);
+  padding: var(--sp-2) var(--sp-3);
+  border: 1px solid var(--c-border-strong);
+  border-radius: var(--radius-md);
+  font-size: var(--fs-base);
+  background-color: var(--c-surface);
+  color: var(--c-text);
+}
+
+.field__input:focus-visible {
+  outline: 2px solid var(--c-focus);
+  outline-offset: 1px;
+}
+
+.field__error {
+  font-size: var(--fs-sm);
+  color: var(--c-danger);
+}
+
+.form-banner {
+  padding: var(--sp-3) var(--sp-4);
+  border-radius: var(--radius-md);
+  font-size: var(--fs-sm);
+}
+
+.form-banner--error {
+  background-color: var(--c-danger-soft);
+  color: var(--c-danger);
+}
+
+.form-banner--success {
+  background-color: var(--c-action-soft);
+  color: var(--c-action-strong);
+}
+
+.form-banner--info {
+  background-color: var(--c-info-soft);
+  color: var(--c-info);
+}
+
 /* --- Chip (entity ilişkisi linkleri: bölge/hizmet, §42) --------------------- */
 
 .chip-row {

@@ -216,22 +216,48 @@ alanları kullanırlar, zararsızca birlikte var olurlar. `app.config.ts`'teki
 
 ### `supabase-js` nerede kullanılacak?
 
-Yalnızca **lazy-loaded** `auth`, `dashboard`, `admin`, `claim` feature'larında — Auth (session
-yönetimi, token refresh), Storage (fotoğraf upload) ve yazma işlemleri için. Public kullanıcı
-bu chunk'ı hiç indirmez.
+Yalnızca **lazy-loaded** `auth`, `dashboard`, `claim` (Faz 7), ileride `admin` (Faz 9)
+feature'larında — Auth (session yönetimi, token refresh), Storage (fotoğraf upload, Faz 8) ve
+yazma işlemleri için. Public kullanıcı bu chunk'ı hiç indirmez.
+
+**Faz 7'de doğrulandı:** `AuthService` (`core/auth/auth.service.ts`) `@supabase/supabase-js`'i
+içe aktarıyor; production build'de `createClient` string'i yalnızca paylaşılan bir LAZY chunk'ta
+bulundu (`grep`le doğrulandı) — main/initial bundle'da YOK. Ayrı bir `core/supabase/` klasörü
+yerine `core/auth/` altında tutuldu çünkü Faz 7'nin TEK ihtiyacı Auth'tu; Storage için Faz 8'de
+ayrı bir `core/storage/` (yine lazy) eklenecek — supabase-js istemcisini burada TEKRAR
+oluşturmak yerine muhtemelen `AuthService`'in `getClient()`'ı paylaşılacak.
+
+### KRİTİK KARAR (Faz 7) — `PostgrestClient` artık kullanıcının JWT'sini gönderiyor
+
+`AuthTokenStore` (`core/auth/auth-token-store.ts`) — supabase-js'e YA DA herhangi bir ağır
+bağımlılığa sahip OLMAYAN, yalnızca bir `signal<string|null>` tutan minik bir servis.
+`PostgrestClient` (SSR dahil HER sayfada kullanılan temel servis) bunu inject eder;
+`AuthService`in KENDİSİNİ değil — aksi halde supabase-js ana pakete sızardı.
+
+Oturum açıkken `Authorization: Bearer <kullanıcının JWT'si>`, kapalıyken (ve SSR'da her zaman)
+`Authorization: Bearer <anon anahtar>`. `apikey` başlığı HER ZAMAN anon anahtardır — bu ikisi
+farklı şeylerdir. Bu değişiklik olmadan Faz 2'nin `to authenticated using (auth.uid() = ...)`
+RLS politikaları (`businesses_select_own`, `claims_select_own`, `analytics_daily_select_own`)
+asla devreye giremezdi — anon anahtarla giden her istek Postgres'e `anon` rolüyle ulaşır,
+`auth.uid()` her zaman `null` döner.
 
 ### Katman şekli
 
 ```
 core/data/
-  postgrest.client.ts      # PostgREST + HttpClient, SSR-safe, elle TransferState'li
+  postgrest.client.ts      # PostgREST + HttpClient, SSR-safe, elle TransferState'li,
+                           # AuthTokenStore'dan okuduğu JWT/anon anahtarla
   database.types.ts        # `npm run db:types` ile üretilir, elle düzenlenmez
-  models.ts                 # database.types.ts'ten türetilen uygulama tipleri
-  business.repository.ts   # sorgu kurucular, tipli dönüşler
+  models.ts                 # database.types.ten türetilen uygulama tipleri
+  business.repository.ts   # sorgu kurucular, tipli dönüşler (+ `mine()` — Faz 7)
   location.repository.ts
   service.repository.ts
-core/supabase/
-  supabase.client.ts       # supabase-js, SADECE lazy feature'larda inject edilir
+  claim.repository.ts      # Faz 7 — sahiplenme talebi CRUD
+  analytics.repository.ts  # Faz 6 — panel istatistik okuma
+core/auth/
+  auth-token-store.ts      # supabase-js YOK, SSR-safe, kök enjektörde
+  auth.service.ts          # supabase-js, SADECE lazy feature'larda inject edilir
+  auth-errors.ts           # AuthError.code -> Türkçe mesaj eşlemesi
 ```
 
 ---
@@ -243,14 +269,12 @@ src/
   app/
     core/
       analytics/      # event tracking, bot filtreleme, session id
+      auth/           # AuthService (supabase-js, lazy) + AuthTokenStore (SSR-safe)
       config/         # runtime config, feature flags
-      data/           # PostgREST repository katmanı (public okuma)
-      supabase/       # supabase-js (auth/storage/yazma) — lazy
+      data/           # PostgREST repository katmanı (public okuma + owner-scoped okuma/yazma)
       seo/            # title/meta/canonical/OG servisi
       schema/         # JSON-LD üreticileri
-      guards/         # authGuard, adminGuard, ownerGuard
-      interceptors/   # http error, cache
-      errors/         # global error handler
+      geo/            # tarayıcı konum izni sarmalayıcısı
     shared/
       ui/             # button, card, badge, skeleton, empty-state
       components/     # taxi-card, call-button, whatsapp-button, directions-button
@@ -269,6 +293,35 @@ src/
     reset.css
     global.css
 ```
+
+### Auth/claim/panel sayfaları neden route guard'sız?
+
+Faz 0'ın orijinal taslağında `core/guards/` (authGuard vb.) vardı. Faz 7'de bilinçli olarak
+KULLANILMADI: bir `CanActivateFn`'i `app.routes.ts`te (ana pakete eager giren bir dosya) statik
+import etmek, `AuthService`'i (ve dolayısıyla supabase-js'i) o dosya üzerinden ana pakete
+sızdırırdı. Bunun yerine her korumalı sayfa (`DashboardPage`, `ClaimPage`) KENDİ effect()'i
+içinde `auth.ready() && !auth.isAuthenticated()` kontrolü yapıp yönlendiriyor — zaten
+`dashboard-page.ts`'in Faz 1'den beri kullandığı `isPlatformBrowser` kontrolü ile AYNI desen
+(sayfa kendi kendini korur). Sonuç: supabase-js hâlâ yalnızca ilgili lazy chunk'larda (canlı
+build'de `grep` ile doğrulandı), guard soyutlaması olmadan.
+
+### Neden Signal Forms (`@angular/forms/signals`), Reactive Forms değil?
+
+CLAUDE.md yönergesi yeni formlar için Signal Forms'u tercih ediyor. Faz 7 bu API'yi kullanan
+İLK form (`AuthPage`, `ClaimPage`) — kütüphane Angular 22'de yeni olduğu ve örnek materyali kıt
+olduğu için, gerçek API yüzeyi (`form()`, `required()`/`email()`/`minLength()`/`validate()`,
+`FormField` direktifi, `FieldState.errors()`/`valid()`/`touched()`) node_modules'teki `.d.ts`
+dosyalarından doğrulanarak yazıldı, varsayılmadı. `styles.css`e `.field`/`.field__input`/
+`.form-banner` ilkel stilleri eklendi — kütüphane kendi stilini getirmiyor.
+
+### Supabase Auth e-posta onayı ZORUNLU (canlıda doğrulandı)
+
+Bu projenin Supabase Auth ayarları e-posta onayını varsayılan olarak açık bırakıyor:
+`signUp()` başarıyla dönse bile `session` HEMEN `null` gelir, kullanıcı onay bağlantısına
+tıklayana kadar giriş yapamaz (`email_not_confirmed` hata kodu). Doğrulama: canlı Auth REST
+uç noktasına gerçek bir test kaydıyla curl edildi (bkz. Faz 7 raporu). `AuthService.signUp()`
+bu yüzden `{confirmed: boolean} | {error}` döner — sayfa hangisi olduğuna göre ya yönlendirir
+ya da "e-postanızı kontrol edin" mesajı gösterir; hiçbir davranış varsayılmadı.
 
 **Kurallar:**
 
@@ -412,6 +465,13 @@ girmez; yalnızca migration script'lerinde ve (gerekirse) Edge Function içinde 
 **Admin kontrolü nasıl?** `profiles` üzerinde `role='admin'` okuyan bir `security definer`
 fonksiyon (`public.is_admin()`) — policy içinde `profiles`'a doğrudan select yapmak sonsuz
 özyineleme üretir; bu bilinen tuzaktan kaçınılacak.
+
+**Faz 7'ye kadar yalnızca `anon` satırı istemciden gerçekten çalıştırılıyordu** — public
+sayfalar hep anon anahtarla okuyordu. Faz 7'de `PostgrestClient` kullanıcı JWT'si göndermeye
+başlayınca `authenticated` satırı (owner'ın kendi `businesses`/`claims`/`analytics_daily`
+satırları) ilk kez gerçek bir tarayıcıdan tetiklendi ve canlı Supabase'e karşı doğrulandı
+(bkz. §4, Faz 7 kararı). İlk admin'i bootstrap etme yolunun eksikliği (R9,
+PROJECT_PLAN.md) bu doğrulama sırasında ortaya çıktı.
 
 **Owner update'i sınırlıdır.** İşletme sahibi `status`, `verification_status`, `plan`,
 `owner_id`, `source_type` kolonlarını **değiştiremez**. Bu, kolon bazlı `GRANT` + bir

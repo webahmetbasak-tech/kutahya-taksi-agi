@@ -8,8 +8,11 @@ import {
   type BusinessDetail,
   type BusinessHoursRow,
   type NearbyBusinessRow,
+  type OwnedBusinessRow,
   type SlugResolution,
 } from './models';
+
+const OWNED_BUSINESS_FIELDS = 'id,slug,business_name,status,verification_status,plan';
 
 /**
  * İşletme okuma sorguları.
@@ -133,6 +136,24 @@ export class BusinessRepository {
   resolveMissingSlug(slug: string): Observable<SlugResolution> {
     return this.client.rpc<SlugResolution>('resolve_missing_business_slug', {
       target_slug: slug,
+    });
+  }
+
+  /**
+   * Oturum açmış kullanıcının sahip olduğu işletmeler (panel, Faz 7).
+   *
+   * `owner_id=eq.<uid>` filtresi burada ZORUNLUDUR: `businesses_select_own` RLS
+   * politikası `businesses_select_active`yle OR'lanır, yani filtre olmadan
+   * sorgu TÜM aktif public işletmeleri de döndürürdü. Filtre, o OR'lanmış
+   * kümeyi yalnızca gerçekten bu kullanıcıya ait satırlara daraltır — hangi
+   * durumda olursa olsun (pending/suspended dahil), çünkü sahip olma koşulu
+   * zaten görünürlüğü tek başına sağlıyor.
+   */
+  mine(ownerId: string): Observable<OwnedBusinessRow[]> {
+    return this.client.list<OwnedBusinessRow>('businesses', {
+      select: OWNED_BUSINESS_FIELDS,
+      owner_id: `eq.${ownerId}`,
+      order: 'business_name.asc',
     });
   }
 }

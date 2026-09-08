@@ -3,6 +3,7 @@ import { inject, Injectable, makeStateKey, PLATFORM_ID, TransferState } from '@a
 import { isPlatformBrowser } from '@angular/common';
 import { map, of, tap, type Observable } from 'rxjs';
 import { APP_CONFIG } from '@core/config/app-config';
+import { AuthTokenStore } from '@core/auth/auth-token-store';
 
 /**
  * Supabase'in PostgREST arayüzüne Angular `HttpClient` üzerinden erişim.
@@ -44,15 +45,26 @@ export class PostgrestClient {
   private readonly config = inject(APP_CONFIG);
   private readonly transferState = inject(TransferState);
   private readonly isBrowser = isPlatformBrowser(inject(PLATFORM_ID));
+  private readonly authToken = inject(AuthTokenStore);
 
   private get baseUrl(): string {
     return `${this.config.supabaseUrl}/rest/v1`;
   }
 
+  /**
+   * `apikey` HER ZAMAN proje anon anahtarıdır (Supabase/PostgREST kuralı).
+   * `Authorization` ise oturum açıkken kullanıcının JWT'sidir — RLS'in
+   * `to authenticated using (auth.uid() = ...)` politikalarının devreye
+   * girmesi İÇİN BU ŞARTTIR; anon anahtarla gönderilen istek Postgres'e her
+   * zaman `anon` rolüyle ulaşır ve sahibe özel satırlar asla görünmez.
+   * Oturum yoksa (veya SSR'da — `AuthTokenStore` hiç dolmaz) anon anahtara
+   * düşülür, ki bu tam olarak public/anonim davranıştır.
+   */
   private get headers(): Record<string, string> {
+    const token = this.authToken.accessToken() ?? this.config.supabaseAnonKey;
     return {
       apikey: this.config.supabaseAnonKey,
-      Authorization: `Bearer ${this.config.supabaseAnonKey}`,
+      Authorization: `Bearer ${token}`,
     };
   }
 
