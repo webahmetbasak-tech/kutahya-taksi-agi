@@ -19,6 +19,7 @@ export type LocationRow = Tables['locations']['Row'];
 export type Business = Tables['businesses']['Row'];
 export type BusinessMedia = Tables['business_media']['Row'];
 export type BusinessHours = Tables['business_hours']['Row'];
+export type AnalyticsDaily = Tables['analytics_daily']['Row'];
 export type LandingPageStats = Views['landing_page_stats']['Row'];
 export type NearbyBusinessRow = Functions['nearby_businesses']['Returns'][number];
 
@@ -145,3 +146,6 @@ export type BusinessHoursRow = Pick<
   BusinessHours,
   'day_of_week' | 'opens_at' | 'closes_at' | 'is_24h' | 'is_closed'
 >;
+
+/** Panel istatistik satırı — RLS (`analytics_daily_select_own`) yalnızca sahibine/admin'e açar. */
+export type AnalyticsDailyRow = Pick<AnalyticsDaily, 'day' | 'event_type' | 'event_count'>;

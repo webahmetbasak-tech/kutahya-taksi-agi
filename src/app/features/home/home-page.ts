@@ -8,6 +8,7 @@ import { GeolocationService } from '@core/geo/geolocation.service';
 import { BusinessList } from '@shared/components/business-list';
 import { Skeleton } from '@shared/ui/skeleton';
 import { SeoService } from '@core/seo/seo.service';
+import { AnalyticsService } from '@core/analytics/analytics.service';
 
 /**
  * Ana sayfa (§21, §22).
@@ -190,6 +191,7 @@ export class HomePage {
   private readonly geolocation = inject(GeolocationService);
   private readonly router = inject(Router);
   private readonly seo = inject(SeoService);
+  private readonly analytics = inject(AnalyticsService);
 
   constructor() {
     this.seo.setPage({
@@ -234,10 +236,18 @@ export class HomePage {
     if (coords) {
       this.nearbyMessage.set(null);
       this.nearbyCoords.set(coords);
+      this.analytics.track({
+        eventType: 'search_performed',
+        metadata: { query_type: 'nearby', geolocation: 'granted' },
+      });
     } else {
       this.nearbyMessage.set('Konumunuz alınamadı — Kütahya Merkez baz alınıyor.');
       // Kütahya Merkez koordinatı (bkz. supabase/migrations — OSM doğrulamalı).
       this.nearbyCoords.set({ latitude: 39.41991, longitude: 29.98579 });
+      this.analytics.track({
+        eventType: 'search_performed',
+        metadata: { query_type: 'nearby', geolocation: 'fallback' },
+      });
     }
 
     void this.router.navigate([], { fragment: 'nearby-heading' });

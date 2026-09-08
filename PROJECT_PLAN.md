@@ -1,6 +1,6 @@
 # PROJECT_PLAN.md — Kütahya Taksi Ağı
 
-> Durum: **FAZ 5 tamamlandı.** Sıradaki: FAZ 6 — Analytics.
+> Durum: **FAZ 6 tamamlandı.** Sıradaki: FAZ 7 — Claim Flow.
 > Son güncelleme: 9 Eylül 2026
 
 Mimari kararlar ve gerekçeleri için: [ARCHITECTURE.md](./ARCHITECTURE.md)
@@ -351,13 +351,31 @@ o ilişkileri hiç okumuyordu. Düzeltildi: `ServiceRepository.forBusiness()` ve
 testle işletmenin gerçek hizmet/bölge linklerinin render edildiği kanıtlandı — sadece
 çökmediği değil.
 
-### FAZ 6 — Analytics
+### FAZ 6 — Analytics ✅ TAMAMLANDI (9 Eylül 2026)
 
-Event tracking servisi, `sendBeacon`, bot filtresi, session id, `analytics_daily` rollup +
-`pg_cron`, 90 günlük saklama, dashboard istatistik sorguları.
+Event tracking servisi, bot filtresi, session id, `analytics_daily` rollup + `pg_cron`,
+90 günlük saklama, dashboard istatistik sorguları.
 
-**DoD:** 8 event tipi de kaydediliyor · SSR event üretmiyor · rollup doğru sayıyor ·
-90 gün temizliği çalışıyor · kayıtlarda PII yok.
+**Yapılanlar:**
+- `AnalyticsService` (`src/app/core/analytics/`) — `fetch(...,{keepalive:true})` ile PostgREST'e
+  yazıyor (bkz. ARCHITECTURE.md §11 — `sendBeacon`'dan sapma gerekçesi), SSR'da no-op,
+  `isLikelyBot()` ile bilinen crawler'ları eliyor, `sessionStorage` tabanlı `session_id`.
+- 6 istemci-tetiklemeli event tipi UI'a bağlandı: `profile_view` (taxi-detail-page, TEK effect,
+  aynı işletme için tekrar saymaz), `call_click`/`whatsapp_click`/`directions_click`
+  (TaxiCard + taxi-detail-page), `website_click` (taxi-detail-page), `search_performed`
+  (home-page → "yakınımdaki taksiler"). `claim_started`/`claim_completed` Faz 7'de,
+  `listing_submitted` Faz 8'de bağlanacak — bu fazda UI'ları henüz yok. `listing_approved`
+  yalnızca admin aksiyonuyla sunucu tarafında yazılacak (Faz 9), istemciden asla gönderilmez.
+- `rollup_analytics_daily()`/`prune_analytics_events()` (Faz 2'den beri vardı ama hiç
+  ZAMANLANMAMIŞTI) artık `pg_cron` ile gece 03:00/03:30 UTC'de çalışıyor
+  (`20260909110000_analytics_cron.sql`, canlı projede doğrulandı: `cron.job` içinde iki aktif iş).
+- `AnalyticsRepository.dailyStats()` yazıldı (RLS'e güveniyor) ama henüz hiçbir UI'dan
+  çağrılmıyor — çağıran Faz 7'nin auth/claim sistemi olacak.
+
+**DoD:** 6 istemci event tipi kaydediliyor (kalan 3'ü ilgili özellik var olunca, Faz 7-9) ·
+SSR event üretmiyor · rollup doğru sayıyor (canlıda doğrulandı) · 90 gün temizliği zamanlanmış ·
+kayıtlarda PII yok · 108/108 unit test geçiyor · gerçek SSR build + canlı Supabase'e karşı
+smoke test geçti.
 
 ### FAZ 7 — Claim Flow
 

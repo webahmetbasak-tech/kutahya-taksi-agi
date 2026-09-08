@@ -11,10 +11,10 @@ tıkladığını görür.
 - Mimari kararlar ve gerekçeleri: [ARCHITECTURE.md](./ARCHITECTURE.md)
 - Faz planı, riskler ve durum: [PROJECT_PLAN.md](./PROJECT_PLAN.md)
 
-**Durum:** FAZ 5 (GEO / AI Search Layer) tamamlandı. `/llms.txt` yayında, AI crawler politikası
-birincil kaynaklardan doğrulandı, işletme ↔ bölge ↔ hizmet entity ilişkileri artık çift yönlü.
-Henüz canlı deployment yok (Vercel — FAZ 12), henüz doğrulanmış işletme verisi yok
-(bkz. PROJECT_PLAN.md R1).
+**Durum:** FAZ 6 (Analytics) tamamlandı. Event tracking (`call_click`, `whatsapp_click`,
+`directions_click`, `website_click`, `profile_view`, `search_performed`) canlıda, gecelik
+rollup + 90 günlük temizlik `pg_cron` ile zamanlı. Henüz canlı deployment yok (Vercel — FAZ 12),
+henüz doğrulanmış işletme verisi yok (bkz. PROJECT_PLAN.md R1).
 
 ---
 

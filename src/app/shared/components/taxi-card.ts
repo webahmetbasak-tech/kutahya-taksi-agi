@@ -1,6 +1,7 @@
-import { Component, computed, input } from '@angular/core';
+import { Component, computed, inject, input } from '@angular/core';
 import { RouterLink } from '@angular/router';
 import type { BusinessCard } from '@core/data/models';
+import { AnalyticsService } from '@core/analytics/analytics.service';
 import { directionsHref } from '@shared/utils/directions';
 import { formatPhoneDisplay, telHref, whatsappHref } from '@shared/utils/phone';
 import { formatTrDate } from '@shared/utils/date';
@@ -39,7 +40,11 @@ import { formatTrDate } from '@shared/utils/date';
 
       <div class="taxi-card__actions">
         @if (business().phone_e164; as phone) {
-          <a class="btn btn--primary taxi-card__action" [href]="telHref(phone)">
+          <a
+            class="btn btn--primary taxi-card__action"
+            [href]="telHref(phone)"
+            (click)="trackCall()"
+          >
             📞 Ara — {{ phoneLabel() }}
           </a>
         } @else {
@@ -52,6 +57,7 @@ import { formatTrDate } from '@shared/utils/date';
             [href]="whatsappHref(wa)"
             target="_blank"
             rel="noopener"
+            (click)="trackWhatsapp()"
           >
             💬 WhatsApp
           </a>
@@ -62,6 +68,7 @@ import { formatTrDate } from '@shared/utils/date';
           [href]="directionsUrl()"
           target="_blank"
           rel="noopener"
+          (click)="trackDirections()"
         >
           🗺️ Yol Tarifi
         </a>
@@ -113,6 +120,8 @@ import { formatTrDate } from '@shared/utils/date';
   `,
 })
 export class TaxiCard {
+  private readonly analytics = inject(AnalyticsService);
+
   readonly business = input.required<BusinessCard>();
   /** Yalnızca "yakınımdaki taksiler" sonuçlarında dolu. */
   readonly distanceMeters = input<number>();
@@ -154,4 +163,16 @@ export class TaxiCard {
 
   protected readonly telHref = telHref;
   protected readonly whatsappHref = whatsappHref;
+
+  protected trackCall(): void {
+    this.analytics.track({ eventType: 'call_click', businessId: this.business().id });
+  }
+
+  protected trackWhatsapp(): void {
+    this.analytics.track({ eventType: 'whatsapp_click', businessId: this.business().id });
+  }
+
+  protected trackDirections(): void {
+    this.analytics.track({ eventType: 'directions_click', businessId: this.business().id });
+  }
 }

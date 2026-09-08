@@ -12,7 +12,11 @@ import { SeoService } from '@core/seo/seo.service';
  * `isPlatformBrowser` kontrolü aynı zamanda Client render modunun gerçekten
  * çalıştığının kanıtıdır — sunucu HTML'inde bu sayfanın içeriği bulunmaz.
  *
- * Faz 6: analytics istatistikleri. Faz 7: auth guard + claim durumu.
+ * Faz 6 tamamlandı: analytics veri hattı (event toplama + gecelik rollup)
+ * çalışıyor. Bu sayfanın kendisi henüz istatistik GÖSTERMİYOR çünkü
+ * `analytics_daily` RLS'i yalnızca işletme sahibine/admin'e açık (§54) — o da
+ * Faz 7'nin auth/claim sistemine bağlı. Faz 7: auth guard + claim durumu +
+ * gerçek istatistik görünümü.
  */
 @Component({
   selector: 'app-dashboard-page',
@@ -27,7 +31,8 @@ import { SeoService } from '@core/seo/seo.service';
         <div class="card notice">
           <p><strong>Panel henüz açılmadı.</strong></p>
           <p class="muted">
-            Giriş, profil sahiplenme ve istatistikler sırasıyla Faz 6 ve Faz 7'de eklenecek.
+            Veri toplama altyapısı hazır — istatistikler, girişinizle birlikte Faz 7'de burada
+            görünecek.
           </p>
         </div>
       } @else {

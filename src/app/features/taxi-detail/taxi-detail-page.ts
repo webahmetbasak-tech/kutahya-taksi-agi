@@ -7,6 +7,7 @@ import { LocationRepository } from '@core/data/location.repository';
 import type { BusinessDetail, SlugResolution } from '@core/data/models';
 import { SeoService } from '@core/seo/seo.service';
 import { SchemaService } from '@core/schema/schema.service';
+import { AnalyticsService } from '@core/analytics/analytics.service';
 import { buildBreadcrumbList, buildLocalBusiness } from '@core/schema/builders';
 import { Breadcrumb } from '@shared/components/breadcrumb';
 import { Skeleton } from '@shared/ui/skeleton';
@@ -67,7 +68,9 @@ const SOURCE_LABELS: Record<string, string> = {
 
         <div class="actions">
           @if (b.phone_e164; as phone) {
-            <a class="btn btn--primary" [href]="telHref(phone)">📞 Ara — {{ phoneLabel() }}</a>
+            <a class="btn btn--primary" [href]="telHref(phone)" (click)="trackCall(b.id)">
+              📞 Ara — {{ phoneLabel() }}
+            </a>
           } @else {
             <p class="no-phone muted">
               Bu işletmenin telefon numarası henüz doğrulanmadı. İşletme sahibiyseniz
@@ -75,11 +78,23 @@ const SOURCE_LABELS: Record<string, string> = {
             </p>
           }
           @if (b.whatsapp_e164; as wa) {
-            <a class="btn btn--secondary" [href]="whatsappHref(wa)" target="_blank" rel="noopener">
+            <a
+              class="btn btn--secondary"
+              [href]="whatsappHref(wa)"
+              target="_blank"
+              rel="noopener"
+              (click)="trackWhatsapp(b.id)"
+            >
               💬 WhatsApp
             </a>
           }
-          <a class="btn btn--secondary" [href]="directionsUrl()" target="_blank" rel="noopener">
+          <a
+            class="btn btn--secondary"
+            [href]="directionsUrl()"
+            target="_blank"
+            rel="noopener"
+            (click)="trackDirections(b.id)"
+          >
             🗺️ Yol Tarifi
           </a>
         </div>
@@ -101,7 +116,9 @@ const SOURCE_LABELS: Record<string, string> = {
         @if (b.website) {
           <section class="section" aria-labelledby="website-heading">
             <h2 id="website-heading" class="section-title">Web sitesi</h2>
-            <a [href]="b.website" target="_blank" rel="noopener">{{ b.website }}</a>
+            <a [href]="b.website" target="_blank" rel="noopener" (click)="trackWebsite(b.id)">
+              {{ b.website }}
+            </a>
           </section>
         }
 
@@ -239,6 +256,7 @@ export class TaxiDetailPage {
   private readonly responseInit = inject(RESPONSE_INIT, { optional: true });
   private readonly seo = inject(SeoService);
   private readonly schema = inject(SchemaService);
+  private readonly analytics = inject(AnalyticsService);
 
   /** `/taksi/:slug` route parametresinden gelir. */
   readonly slug = input.required<string>();
@@ -330,6 +348,9 @@ export class TaxiDetailPage {
   protected readonly telHref = telHref;
   protected readonly whatsappHref = whatsappHref;
 
+  /** Aynı işletme için `profile_view`'ın birden çok kez sayılmasını önler. */
+  private lastTrackedProfileId: string | undefined;
+
   constructor() {
     effect(() => {
       if (this.business.status() !== 'resolved') {
@@ -344,6 +365,44 @@ export class TaxiDetailPage {
 
       this.applyMissingState();
     });
+
+    /**
+     * `profile_view` için AYRI, dar kapsamlı bir effect (Faz 6 kararı).
+     *
+     * NEDEN AYRI? Yukarıdaki effect `hours`/`services`/`locations` gibi daha
+     * sonra çözülen kaynakları da (schema.set içinde `this.hours.value()`
+     * üzerinden dolaylı olarak) okuyabilir hâle gelebilir; aynı effect'e
+     * eklenirse `profile_view` her yeniden çalıştığında tekrar sayılabilir.
+     * Bu effect YALNIZCA `business.status()`/`business.value()` okur, böylece
+     * yalnızca gerçekten yeni bir işletme çözüldüğünde tetiklenir.
+     */
+    effect(() => {
+      if (this.business.status() !== 'resolved') {
+        return;
+      }
+      const b = this.business.value();
+      if (!b || this.lastTrackedProfileId === b.id) {
+        return;
+      }
+      this.lastTrackedProfileId = b.id;
+      this.analytics.track({ eventType: 'profile_view', businessId: b.id });
+    });
+  }
+
+  protected trackCall(businessId: string): void {
+    this.analytics.track({ eventType: 'call_click', businessId });
+  }
+
+  protected trackWhatsapp(businessId: string): void {
+    this.analytics.track({ eventType: 'whatsapp_click', businessId });
+  }
+
+  protected trackDirections(businessId: string): void {
+    this.analytics.track({ eventType: 'directions_click', businessId });
+  }
+
+  protected trackWebsite(businessId: string): void {
+    this.analytics.track({ eventType: 'website_click', businessId });
   }
 
   private applyFoundState(b: BusinessDetail): void {

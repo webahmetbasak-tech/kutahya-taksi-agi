@@ -547,14 +547,34 @@ Faz 4 migration'ı) ile TEK sorguda ayrıştırılır ve `taxi-detail-page.ts`'t
 
 ## 11. Analytics Mimarisi
 
-Kendi sistemimiz (§5). Üçüncü parti analytics MVP'de yok.
+Kendi sistemimiz (§5). Üçüncü parti analytics MVP'de yok. Uygulama: `src/app/core/analytics/`
+(`AnalyticsService`, `bot-detection.ts`), `src/app/core/data/analytics.repository.ts`.
 
 - `session_id`: `crypto.randomUUID()`, `sessionStorage`'da; **IP ve user-agent saklanmaz**.
-- Bot filtresi: event'ler yalnızca tarayıcıda, hydration sonrası tetiklenir; SSR render'ı ve
-  bilinen crawler'lar event üretmez. Böylece "247 görüntülenme" gerçek insan sayısına yakın olur.
+- Bot filtresi (`isLikelyBot()`): event'ler yalnızca tarayıcıda, `isPlatformBrowser` sonrası
+  tetiklenir; SSR render'ı hiç event üretmez. Ayrıca bilinen crawler user-agent imzaları (Googlebot,
+  GPTBot, OAI-SearchBot, ChatGPT-User, ClaudeBot, Claude-User, PerplexityBot, vb. — bkz.
+  `bot-detection.ts`) elenir; bu kesin bir güvenlik sınırı değil, en iyi çaba istatistik temizliğidir.
 - `call_click` yalnızca **tıklama** olarak kaydedilir; görüşme gerçekleşti iddiası yok (§29).
-- Event'ler `sendBeacon` ile gönderilir (navigasyonu bloklamaz, INP'yi etkilemez).
 - KVKK: PII yok, IP yok, çerez tabanlı kalıcı takip yok (§56).
+- `rollup_analytics_daily()` (gece 03:00 UTC) ve `prune_analytics_events()` (03:30 UTC)
+  `pg_cron` ile zamanlanmıştır (`supabase/migrations/20260909110000_analytics_cron.sql`) — 90 günden
+  eski ham event silinir, günlük özet kalıcıdır.
+- Panel istatistik sorguları (`AnalyticsRepository.dailyStats()`) RLS'e güvenir
+  (`analytics_daily_select_own` — yalnızca sahip/admin); Faz 6'da yazıldı ama HENÜZ HİÇBİR UI
+  tarafından çağrılmıyor — çağıran, Faz 7'nin auth/claim sistemidir (bkz. `dashboard-page.ts` yorumu).
+
+### KRİTİK KARAR (Faz 6) — `sendBeacon` DEĞİL, `fetch(..., {keepalive:true})`
+
+Master prompt §11 `sendBeacon` istiyordu; uygulamada bundan VAZGEÇİLDİ. Sebep: `sendBeacon` özel
+HTTP başlığı ayarlayamaz (yalnızca `Content-Type` çıkarımı yapılır — [MDN][beacon-headers]), ancak
+PostgREST HER istekte `apikey`/`Authorization` başlığı zorunlu kılar ve buna sorgu dizesi tabanlı bir
+alternatif sunmaz (o yalnızca Supabase Realtime'a özgüdür). `fetch(url, {keepalive:true, headers})`
+`sendBeacon` ile AYNI garantiyi verir — sayfa kapansa/gezinilse bile istek tamamlanır — ve başlık
+desteğini korur. Bu, TransferState (§4) ve `allowedHosts` (§3) bulgularıyla aynı desen: master
+prompt'un literal talimatı teknik bir kısıtla çelişince, sapma burada açıkça gerekçelendirilir.
+
+[beacon-headers]: https://developer.mozilla.org/en-US/docs/Web/API/Navigator/sendBeacon
 
 ---
 

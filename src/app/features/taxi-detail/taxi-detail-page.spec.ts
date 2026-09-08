@@ -25,6 +25,16 @@ const config: AppEnvironment = {
 describe('TaxiDetailPage', () => {
   let http: HttpTestingController;
   let responseInit: { status?: number; headers?: { Location?: string } };
+  let fetchSpy: ReturnType<typeof vi.fn>;
+
+  beforeEach(() => {
+    // `AnalyticsService.track()` gerçek `fetch` kullanır (bkz. analytics.service.ts) —
+    // testlerde gerçek ağ isteği atılmasın diye stub'lanır.
+    fetchSpy = vi.fn().mockResolvedValue(new Response(null, { status: 201 }));
+    vi.stubGlobal('fetch', fetchSpy);
+  });
+
+  afterEach(() => vi.unstubAllGlobals());
 
   async function setup(slug: string) {
     responseInit = {};
@@ -156,6 +166,50 @@ describe('TaxiDetailPage', () => {
     const text = (fixture.nativeElement as HTMLElement).textContent ?? '';
     expect(text).toContain('Zümrüt Taksi');
     expect(text).not.toContain('İşletme profili bulunamadı');
+  });
+
+  it('işletme çözüldüğünde profile_view TAM OLARAK BİR KEZ takip edilir (§Faz 6)', async () => {
+    await setup('zumrut-taksi');
+
+    http
+      .expectOne((r) => r.url.includes('/rest/v1/businesses'))
+      .flush([
+        {
+          id: '1',
+          slug: 'zumrut-taksi',
+          business_name: 'Zümrüt Taksi',
+          phone_e164: '+905551112233',
+          phone_display: null,
+          whatsapp_e164: null,
+          district: 'Merkez',
+          neighborhood: null,
+          verification_status: 'unverified',
+          last_verified_at: null,
+          google_maps_url: null,
+          description: null,
+          address: null,
+          city: 'Kütahya',
+          latitude: null,
+          longitude: null,
+          website: null,
+          source_type: 'manual',
+          updated_at: '2026-09-01T00:00:00Z',
+        },
+      ]);
+    await tick();
+    http.expectOne((r) => r.url.includes('/rest/v1/business_hours')).flush([]);
+    http.expectOne((r) => r.url.includes('/rest/v1/business_services')).flush([]);
+    http.expectOne((r) => r.url.includes('/rest/v1/business_locations')).flush([]);
+
+    await currentFixture.whenStable();
+
+    const profileViewCalls = fetchSpy.mock.calls.filter((call) => {
+      const body = JSON.parse((call[1] as RequestInit).body as string);
+      return body.event_type === 'profile_view';
+    });
+    expect(profileViewCalls).toHaveLength(1);
+    const [call] = profileViewCalls;
+    expect(JSON.parse((call![1] as RequestInit).body as string).business_id).toBe('1');
   });
 
   it('bulunan işletme için LocalBusiness JSON-LD yazar, telefon yoksa telephone alanı hiç görünmez', async () => {

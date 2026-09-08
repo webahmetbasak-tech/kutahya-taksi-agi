@@ -2,6 +2,8 @@ import { TestBed } from '@angular/core/testing';
 import { provideRouter } from '@angular/router';
 import { TaxiCard } from './taxi-card';
 import type { BusinessCard } from '@core/data/models';
+import { provideAppConfig } from '@core/config/app-config';
+import { AnalyticsService } from '@core/analytics/analytics.service';
 
 function business(overrides: Partial<BusinessCard> = {}): BusinessCard {
   return {
@@ -24,7 +26,7 @@ describe('TaxiCard', () => {
   async function setup(input: Partial<BusinessCard> = {}, distanceMeters?: number) {
     await TestBed.configureTestingModule({
       imports: [TaxiCard],
-      providers: [provideRouter([])],
+      providers: [provideRouter([]), provideAppConfig()],
     }).compileComponents();
 
     const fixture = TestBed.createComponent(TaxiCard);
@@ -96,5 +98,26 @@ describe('TaxiCard', () => {
     const el = fixture.nativeElement as HTMLElement;
 
     expect(el.textContent).toContain('850 m uzaklıkta');
+  });
+
+  it('"Ara" tıklanınca call_click olayını işletme id\'siyle takip eder', async () => {
+    const trackSpy = vi.fn();
+    await TestBed.configureTestingModule({
+      imports: [TaxiCard],
+      providers: [
+        provideRouter([]),
+        provideAppConfig(),
+        { provide: AnalyticsService, useValue: { track: trackSpy } },
+      ],
+    }).compileComponents();
+    const fixture = TestBed.createComponent(TaxiCard);
+    fixture.componentRef.setInput('business', business());
+    fixture.detectChanges();
+    await fixture.whenStable();
+
+    const el = fixture.nativeElement as HTMLElement;
+    el.querySelector<HTMLAnchorElement>('a.btn--primary')?.click();
+
+    expect(trackSpy).toHaveBeenCalledWith({ eventType: 'call_click', businessId: '1' });
   });
 });
