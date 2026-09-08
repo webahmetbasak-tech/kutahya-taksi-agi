@@ -12,16 +12,16 @@ Bu bir **greenfield** projedir; migrate edilecek eski kod yoktur.
 
 ### Doğrulanan toolchain
 
-| Bileşen | Sürüm | Not |
-|---|---|---|
-| Node.js | 24.18.0 | Angular 22 için yeterli |
-| npm | 11.17.0 | |
-| Angular CLI (global) | 22.0.6 | `@angular/core` latest: **22.1.5** |
-| `@angular/ssr` | 22.1.7 | |
-| `@supabase/supabase-js` | 2.116.0 | |
-| git | 2.55.0 | repo bu fazda `main` olarak init edildi |
-| Supabase CLI | **kurulu değil** | Faz 2 öncesi gerekli (`npm i -D supabase`) |
-| Vercel CLI | **kurulu değil** | Faz 12 öncesi gerekli |
+| Bileşen                 | Sürüm            | Not                                        |
+| ----------------------- | ---------------- | ------------------------------------------ |
+| Node.js                 | 24.18.0          | Angular 22 için yeterli                    |
+| npm                     | 11.17.0          |                                            |
+| Angular CLI (global)    | 22.0.6           | `@angular/core` latest: **22.1.5**         |
+| `@angular/ssr`          | 22.1.7           |                                            |
+| `@supabase/supabase-js` | 2.116.0          |                                            |
+| git                     | 2.55.0           | repo bu fazda `main` olarak init edildi    |
+| Supabase CLI            | **kurulu değil** | Faz 2 öncesi gerekli (`npm i -D supabase`) |
+| Vercel CLI              | **kurulu değil** | Faz 12 öncesi gerekli                      |
 
 **Karar:** Angular **22.1.x** kullanılacak. Prompt "Angular 20+" diyor; 22 mevcut stable ve `outputMode` /
 route bazlı `RenderMode` API'sinin olgunlaştığı sürüm.
@@ -75,15 +75,15 @@ Angular 22, her route için ayrı render modu tanımlamayı destekler:
 ```ts
 // app.routes.server.ts
 export const serverRoutes: ServerRoute[] = [
-  { path: '',            renderMode: RenderMode.Server },    // ana sayfa
-  { path: 'taksi',       renderMode: RenderMode.Server },    // liste
-  { path: 'taksi/:slug', renderMode: RenderMode.Server },    // detay
+  { path: '', renderMode: RenderMode.Server }, // ana sayfa
+  { path: 'taksi', renderMode: RenderMode.Server }, // liste
+  { path: 'taksi/:slug', renderMode: RenderMode.Server }, // detay
   { path: 'bolge/:slug', renderMode: RenderMode.Server },
-  { path: 'hakkinda',    renderMode: RenderMode.Prerender }, // statik içerik
-  { path: 'gizlilik',    renderMode: RenderMode.Prerender },
-  { path: 'panel/**',    renderMode: RenderMode.Client },    // dashboard
-  { path: 'admin/**',    renderMode: RenderMode.Client },    // admin
-  { path: '**',          renderMode: RenderMode.Server },
+  { path: 'hakkinda', renderMode: RenderMode.Prerender }, // statik içerik
+  { path: 'gizlilik', renderMode: RenderMode.Prerender },
+  { path: 'panel/**', renderMode: RenderMode.Client }, // dashboard
+  { path: 'admin/**', renderMode: RenderMode.Client }, // admin
+  { path: '**', renderMode: RenderMode.Server },
 ];
 ```
 
@@ -128,6 +128,22 @@ vercel.json     -> dinamik trafiği /api'ye rewrite eder, dist/<app>/browser'ı 
 Bu düşük riskli ama **sıfır risk değil**; Faz 1'in sonunda "merhaba dünya" seviyesinde
 Vercel'e deploy edip SSR'ın gerçekten çalıştığını **kanıtlamadan** Faz 3'e geçilmeyecek.
 (Kanıt yöntemi: `curl` ile ham HTML'de dinamik içeriğin görünmesi.)
+
+**Faz 1 sonucu:** adapter yazıldı, SSR lokal olarak kanıtlandı (rastgele slug istek
+anında render ediliyor). Vercel üzerindeki doğrulama domain/hesap bağlandığında
+yapılacak.
+
+### İkinci tuzak: `allowedHosts` (Faz 1'de yaşandı)
+
+Angular SSR, SSRF'e karşı istek hostname'ini doğrular ve tanınmayan host için
+**tüm sayfalarda 400** döner — hata mesajı nedeni açıklamaz. Varsayılan liste boştur,
+yani hiçbir ayar yapılmazsa `localhost` bile reddedilir.
+
+`src/server.ts` host listesini `NG_ALLOWED_HOSTS` ile birlikte Vercel'in otomatik
+sağladığı `VERCEL_PROJECT_PRODUCTION_URL` / `VERCEL_URL` / `VERCEL_BRANCH_URL`
+değişkenlerinden toplar; böylece preview deployment'ları ek ayar istemez. **Özel
+domain bağlandığında `NG_ALLOWED_HOSTS` mutlaka tanımlanmalıdır** — Faz 12 kontrol
+listesinde.
 
 Kaynaklar: [Angular SSR guide](https://angular.dev/guide/ssr) ·
 [Essential Angular SSR Config To Deploy On Vercel](https://dev.to/this-is-angular/essential-angular-ssr-config-to-deploy-on-vercel-2lka) ·
@@ -213,12 +229,19 @@ src/
 
 **Kurallar:**
 
-- Yalnızca standalone component. NgModule yok.
-- `changeDetection: OnPush` her component'te.
-- State için Signals; global store kütüphanesi **yok** (§82).
-- Her feature lazy loaded (`loadChildren` / `loadComponent`).
+- Yalnızca standalone component. NgModule yok. `standalone: true` **yazılmaz** (v20+ varsayılan).
+- `changeDetection: OnPush` **açıkça yazılmaz** — Angular 22'de varsayılan zaten OnPush.
+- Uygulama **zoneless** çalışır (`zone.js` bağımlılığı yok). State için Signals;
+  global store kütüphanesi **yok** (§82).
+- Her feature lazy loaded (`loadComponent` / `loadChildren`).
 - `core/` yalnızca root'ta sağlanır; `shared/` state tutmaz.
-- TypeScript `strict: true`, `strictTemplates: true`, `noUncheckedIndexedAccess: true`.
+- TypeScript `strict: true`, `strictTemplates: true`, `noUncheckedIndexedAccess: true`,
+  `exactOptionalPropertyTypes: true`.
+- Yol takma adları: `@core/*`, `@shared/*`, `@features/*`, `@env`.
+- Formlar: Angular 22'de **Signal Forms** (`@angular/forms/signals`) stabil ve
+  önerilen yol. Prompt §5 "Reactive Forms" diyor; ikisi de reaktif ve tip güvenli,
+  Signal Forms bu sürümde daha iyi eşleşiyor. Karar Faz 7/8'de form yazılırken
+  kesinleşecek — o zamana kadar ikisi de açık.
 
 ---
 
@@ -293,22 +316,22 @@ sonra veri migrasyonu. MVP'de tek satır: `taksi`. Bu overengineering değil, uc
 
 ### Diğer tablolar
 
-| Tablo | Amaç | Kritik nokta |
-|---|---|---|
-| `categories` | dikey (MVP: sadece `taksi`) | |
-| `profiles` | Auth kullanıcı profili, `role` | `id` = `auth.users.id` |
-| `services` | 7/24, havalimanı, şehirlerarası… | `slug` unique |
-| `business_services` | M2M | PK(business_id, service_id) |
-| `locations` | şehir/ilçe/mahalle/landmark, `parent_id` | hiyerarşi; §42 internal linking omurgası |
-| `business_locations` | M2M — hizmet bölgeleri | |
-| `business_hours` | çalışma saatleri | **yalnızca doğrulanmışsa satır yazılır** (§75) |
-| `business_media` | Storage path + alt_text + sort_order | |
-| `claims` | sahiplenme talepleri | `unique(business_id) where status='approved'` |
-| `reviews` | V1'de **yazma kapalı**, şema hazır | §17 |
-| `analytics_events` | ham event | `created_at` üzerinde BRIN index |
-| `analytics_daily` | günlük rollup | dashboard bunu okur, ham tabloyu değil |
-| `business_slug_history` | eski slug → 301 | §64 |
-| `landing_pages` | SEO landing page tanımları | §31 thin content kapısı |
+| Tablo                   | Amaç                                     | Kritik nokta                                   |
+| ----------------------- | ---------------------------------------- | ---------------------------------------------- |
+| `categories`            | dikey (MVP: sadece `taksi`)              |                                                |
+| `profiles`              | Auth kullanıcı profili, `role`           | `id` = `auth.users.id`                         |
+| `services`              | 7/24, havalimanı, şehirlerarası…         | `slug` unique                                  |
+| `business_services`     | M2M                                      | PK(business_id, service_id)                    |
+| `locations`             | şehir/ilçe/mahalle/landmark, `parent_id` | hiyerarşi; §42 internal linking omurgası       |
+| `business_locations`    | M2M — hizmet bölgeleri                   |                                                |
+| `business_hours`        | çalışma saatleri                         | **yalnızca doğrulanmışsa satır yazılır** (§75) |
+| `business_media`        | Storage path + alt_text + sort_order     |                                                |
+| `claims`                | sahiplenme talepleri                     | `unique(business_id) where status='approved'`  |
+| `reviews`               | V1'de **yazma kapalı**, şema hazır       | §17                                            |
+| `analytics_events`      | ham event                                | `created_at` üzerinde BRIN index               |
+| `analytics_daily`       | günlük rollup                            | dashboard bunu okur, ham tabloyu değil         |
+| `business_slug_history` | eski slug → 301                          | §64                                            |
+| `landing_pages`         | SEO landing page tanımları               | §31 thin content kapısı                        |
 
 ### `analytics_events` — ölçeklenme kararı
 
@@ -331,11 +354,11 @@ bir "dikkat edelim" temennisi değil, **veritabanı seviyesinde uygulanan bir ku
 RLS **tüm tablolarda açık**, istisnasız. `service_role` anahtarı frontend'e **hiçbir koşulda**
 girmez; yalnızca migration script'lerinde ve (gerekirse) Edge Function içinde kullanılır.
 
-| Rol | businesses | claims | analytics_events | profiles |
-|---|---|---|---|---|
-| anon | `select` where `status='active'` | — | `insert` (kısıtlı) | — |
-| authenticated | + kendi `owner_id`'si için `update` | kendi `user_id`'si: `select`,`insert` | `insert` | kendi satırı |
-| admin | tümü | tümü | `select` | tümü |
+| Rol           | businesses                          | claims                                | analytics_events   | profiles     |
+| ------------- | ----------------------------------- | ------------------------------------- | ------------------ | ------------ |
+| anon          | `select` where `status='active'`    | —                                     | `insert` (kısıtlı) | —            |
+| authenticated | + kendi `owner_id`'si için `update` | kendi `user_id`'si: `select`,`insert` | `insert`           | kendi satırı |
+| admin         | tümü                                | tümü                                  | `select`           | tümü         |
 
 **Admin kontrolü nasıl?** `profiles` üzerinde `role='admin'` okuyan bir `security definer`
 fonksiyon (`public.is_admin()`) — policy içinde `profiles`'a doğrudan select yapmak sonsuz
@@ -420,6 +443,7 @@ döner (§64) — 404 değil, çünkü kalıcı kaldırma sinyali daha nettir.
   - `source_type` → "Kaynak: kamuya açık durak bilgisi"
 
   Üçü de **veriden** gelir; şablonda sabit metin yoktur.
+
 - Entity ilişkileri hem HTML linki hem `areaServed` / `sameAs` ile ifade edilir (§42).
 
 ---
@@ -454,12 +478,12 @@ Kendi sistemimiz (§5). Üçüncü parti analytics MVP'de yok.
 
 ## 13. Performans Bütçesi (§44)
 
-| Metrik | Hedef (mobil, 4G) |
-|---|---|
-| LCP | < 2.0 s |
-| CLS | < 0.05 |
-| INP | < 200 ms |
-| İlk JS (public sayfalar, gzip) | < 120 KB |
+| Metrik                         | Hedef (mobil, 4G) |
+| ------------------------------ | ----------------- |
+| LCP                            | < 2.0 s           |
+| CLS                            | < 0.05            |
+| INP                            | < 200 ms          |
+| İlk JS (public sayfalar, gzip) | < 120 KB          |
 
 Uygulama: kritik içerik SSR HTML'de; görseller Supabase Storage transform ile WebP/AVIF +
 `srcset` + `width`/`height` (CLS); `NgOptimizedImage`; hero görseli `priority`; harita
@@ -475,22 +499,33 @@ SUPABASE_ANON_KEY=
 SUPABASE_SERVICE_ROLE_KEY=      # yalnızca lokal script / CI, ASLA client
 SITE_URL=                       # canonical/sitemap tabanı; domain alınınca dolar
 ENVIRONMENT=development|preview|production
+NG_ALLOWED_HOSTS=               # SSR host doğrulaması; özel domain'de zorunlu
 ```
 
-`SITE_URL` boşken canonical üretimi `localhost` yazmamalı — Faz 4'te bu durum açıkça ele alınacak.
+**Mekanizma:** Angular build `.env` okumaz. `scripts/generate-env.mjs`, `process.env`
+(Vercel/CI) ve `.env` (lokal) değerlerinden `src/environments/environment.generated.ts`
+üretir; bu dosya gitignore'dadır ve `prebuild`/`prestart`/`pretest` script'leri onu her
+zaman yeniden üretir. Kod her zaman `@env` üzerinden import eder.
+
+`service_role` anahtarı bu script tarafından **hiç okunmaz** — client'a sızmamasının
+tek güvenilir yolu onu bu yola hiç sokmamaktır. Script ayrıca anon key alanına
+yanlışlıkla service_role konursa build'i durdurur.
+
+**`SITE_URL` production'da boşsa build bilerek durur.** Canonical/sitemap/OG mutlak URL
+gerektirir; `localhost` yazmak sessiz bir indeksleme felaketi olurdu.
 
 ---
 
 ## 15. Değerlendirilip Reddedilen Alternatifler
 
-| Alternatif | Neden reddedildi |
-|---|---|
-| Tam prerender (SSG) | İçerik tazeliği admin onayına bağlı; her onayda redeploy sürdürülemez |
-| Ayrı NestJS/Express API | Supabase + RLS yeterli; üçüncü katman gereksiz karmaşıklık (§82) |
-| NgRx / global store | Signals + resolver yeterli; MVP'de state karmaşıklığı yok |
-| Public yolda `supabase-js` | TransferState kaçağı + bundle şişmesi (bkz. §4) |
-| Angular Material | Tasarım kimliğini kısıtlar, bundle ağır; kendi token + UI seti (§45) |
-| Leaflet / Google Maps JS | §50 — MVP'de harita yok, harici "Yol Tarifi" linki yeterli |
-| Google Maps verisini çekmek | ToS ihlali + yeniden yayın hakkı yok; §75 ile de çelişir |
-| lat/lon kolonları (PostGIS'siz) | "Yakınımdaki" sorgusu index kullanamaz |
-| 3. parti analytics (GA4/Plausible) | §5 kendi event sistemimizi istiyor; KVKK yüzeyi daha küçük |
+| Alternatif                         | Neden reddedildi                                                      |
+| ---------------------------------- | --------------------------------------------------------------------- |
+| Tam prerender (SSG)                | İçerik tazeliği admin onayına bağlı; her onayda redeploy sürdürülemez |
+| Ayrı NestJS/Express API            | Supabase + RLS yeterli; üçüncü katman gereksiz karmaşıklık (§82)      |
+| NgRx / global store                | Signals + resolver yeterli; MVP'de state karmaşıklığı yok             |
+| Public yolda `supabase-js`         | TransferState kaçağı + bundle şişmesi (bkz. §4)                       |
+| Angular Material                   | Tasarım kimliğini kısıtlar, bundle ağır; kendi token + UI seti (§45)  |
+| Leaflet / Google Maps JS           | §50 — MVP'de harita yok, harici "Yol Tarifi" linki yeterli            |
+| Google Maps verisini çekmek        | ToS ihlali + yeniden yayın hakkı yok; §75 ile de çelişir              |
+| lat/lon kolonları (PostGIS'siz)    | "Yakınımdaki" sorgusu index kullanamaz                                |
+| 3. parti analytics (GA4/Plausible) | §5 kendi event sistemimizi istiyor; KVKK yüzeyi daha küçük            |

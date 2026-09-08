@@ -1,0 +1,136 @@
+/**
+ * Design tokens — Kütahya Taksi Ağı
+ *
+ * Tasarım yönü (§45): modern, premium, güvenilir local-tech marketplace.
+ * Gösteriş değil; hızlı, temiz, mobile-first, conversion odaklı.
+ *
+ * Renk kimliği: taksi sarısı bir aksan olarak kullanılır, arka plan olarak DEĞİL.
+ * Zemin nötr ve sakin kalır; sarı yalnızca dikkat çekmesi gereken yerde görünür,
+ * böylece "amatör rehber" hissi yerine ciddi bir ürün hissi oluşur.
+ */
+
+:root {
+  /* --- Renk paleti: nötr zemin ------------------------------------------ */
+  --c-bg: #ffffff;
+  --c-bg-subtle: #f7f7f8;
+  --c-bg-muted: #eeeef1;
+  --c-surface: #ffffff;
+  --c-border: #e2e2e7;
+  --c-border-strong: #c9c9d1;
+
+  /* --- Metin ------------------------------------------------------------- */
+  --c-text: #16161a;
+  --c-text-muted: #5c5c68;
+  --c-text-subtle: #86868f;
+  --c-text-inverse: #ffffff;
+
+  /* --- Marka: taksi sarısı (aksan) --------------------------------------- */
+  --c-brand: #f5b301;
+  --c-brand-strong: #d99a00;
+  --c-brand-soft: #fff6dc;
+  /* Sarı üstünde beyaz metin WCAG AA'yı geçmez; sarı zeminde daima koyu metin. */
+  --c-on-brand: #1a1400;
+
+  /* --- Aksiyon: birincil CTA (Ara) --------------------------------------- */
+  --c-action: #12805c;
+  --c-action-strong: #0d6247;
+  --c-action-soft: #e6f4ef;
+  --c-on-action: #ffffff;
+
+  /* --- WhatsApp (marka rengi, yalnızca WhatsApp butonunda) --------------- */
+  --c-whatsapp: #1d7d4d;
+  --c-whatsapp-strong: #16643d;
+
+  /* --- Durum ------------------------------------------------------------- */
+  --c-success: #12805c;
+  --c-warning: #9a6200;
+  --c-warning-soft: #fdf3e0;
+  --c-danger: #b3261e;
+  --c-danger-soft: #fdecea;
+  --c-info: #1f5fa8;
+  --c-info-soft: #e8f0fa;
+
+  /* --- Odak halkası (a11y) ---------------------------------------------- */
+  --c-focus: #1f5fa8;
+
+  /* --- Tipografi --------------------------------------------------------- */
+  /* Sistem font yığını: sıfır network isteği, sıfır CLS, hızlı LCP (§44). */
+  --font-sans:
+    system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, 'Noto Sans', sans-serif,
+    'Apple Color Emoji', 'Segoe UI Emoji';
+
+  --fs-xs: 0.75rem; /* 12px */
+  --fs-sm: 0.875rem; /* 14px */
+  --fs-base: 1rem; /* 16px */
+  --fs-lg: 1.125rem; /* 18px */
+  --fs-xl: 1.375rem; /* 22px */
+  --fs-2xl: 1.75rem; /* 28px */
+  --fs-3xl: 2.25rem; /* 36px */
+  --fs-4xl: 2.75rem; /* 44px */
+
+  --lh-tight: 1.2;
+  --lh-snug: 1.35;
+  --lh-normal: 1.55;
+
+  --fw-normal: 400;
+  --fw-medium: 500;
+  --fw-semibold: 600;
+  --fw-bold: 700;
+
+  /* --- Aralık (4px tabanlı) --------------------------------------------- */
+  --sp-1: 0.25rem;
+  --sp-2: 0.5rem;
+  --sp-3: 0.75rem;
+  --sp-4: 1rem;
+  --sp-5: 1.25rem;
+  --sp-6: 1.5rem;
+  --sp-8: 2rem;
+  --sp-10: 2.5rem;
+  --sp-12: 3rem;
+  --sp-16: 4rem;
+  --sp-20: 5rem;
+
+  /* --- Köşe yuvarlaklığı ------------------------------------------------- */
+  --radius-sm: 6px;
+  --radius-md: 10px;
+  --radius-lg: 14px;
+  --radius-xl: 20px;
+  --radius-full: 999px;
+
+  /* --- Gölge (ölçülü) ---------------------------------------------------- */
+  --shadow-sm: 0 1px 2px rgb(16 16 26 / 6%);
+  --shadow-md: 0 2px 8px rgb(16 16 26 / 8%);
+  --shadow-lg: 0 8px 24px rgb(16 16 26 / 10%);
+
+  /* --- Düzen ------------------------------------------------------------- */
+  --container-max: 1120px;
+  --container-pad: var(--sp-4);
+  --header-height: 60px;
+
+  /* --- Dokunma hedefi (§46 mobile-first) --------------------------------- */
+  /* WCAG 2.2 AA hedef boyutu 24px; mobil CTA'lar için 48px kullanıyoruz. */
+  --tap-min: 48px;
+
+  /* --- Hareket ----------------------------------------------------------- */
+  --ease: cubic-bezier(0.2, 0, 0.2, 1);
+  --dur-fast: 120ms;
+  --dur-base: 200ms;
+
+  --z-header: 100;
+  --z-overlay: 200;
+}
+
+@media (min-width: 768px) {
+  :root {
+    --container-pad: var(--sp-6);
+    --header-height: 68px;
+  }
+}
+
+/* Hareket azaltma tercihi (a11y) */
+@media (prefers-reduced-motion: reduce) {
+  :root {
+    --dur-fast: 0ms;
+    --dur-base: 0ms;
+  }
+}

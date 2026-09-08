@@ -1,0 +1,18 @@
+{
+  "$schema": "https://openapi.vercel.sh/vercel.json",
+  "buildCommand": "npm run build",
+  "outputDirectory": "dist/kutahya-taksi-agi/browser",
+  "framework": null,
+  "functions": {
+    "api/index.mjs": {
+      "includeFiles": "dist/kutahya-taksi-agi/server/**",
+      "maxDuration": 15
+    }
+  },
+  "rewrites": [
+    {
+      "source": "/((?!api/).*)",
+      "destination": "/api"
+    }
+  ]
+}

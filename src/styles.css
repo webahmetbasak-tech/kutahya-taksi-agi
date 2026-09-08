@@ -1,0 +1,178 @@
+/* Global stil giriş noktası. Sıra önemli: token'lar → reset → yardımcı sınıflar. */
+@import './styles/tokens.css';
+@import './styles/reset.css';
+
+/* --- Düzen yardımcıları ---------------------------------------------------- */
+
+.container {
+  width: 100%;
+  max-width: var(--container-max);
+  margin-inline: auto;
+  padding-inline: var(--container-pad);
+}
+
+.stack > * + * {
+  margin-block-start: var(--sp-4);
+}
+
+/* Ekran okuyucuya görünür, gözle görünmez. */
+.visually-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+  border: 0;
+}
+
+/* Klavye kullanıcısı için "içeriğe atla" bağlantısı. */
+.skip-link {
+  position: absolute;
+  inset-inline-start: var(--sp-4);
+  inset-block-start: calc(-1 * var(--sp-16));
+  z-index: var(--z-overlay);
+  padding: var(--sp-3) var(--sp-4);
+  background: var(--c-text);
+  color: var(--c-text-inverse);
+  border-radius: var(--radius-md);
+  text-decoration: none;
+  transition: inset-block-start var(--dur-fast) var(--ease);
+}
+
+.skip-link:focus {
+  inset-block-start: var(--sp-3);
+}
+
+/* --- Tipografi ölçeği ------------------------------------------------------ */
+
+.page-title {
+  font-size: var(--fs-2xl);
+  letter-spacing: -0.01em;
+}
+
+.section-title {
+  font-size: var(--fs-xl);
+  letter-spacing: -0.005em;
+}
+
+.lead {
+  font-size: var(--fs-lg);
+  color: var(--c-text-muted);
+}
+
+.muted {
+  color: var(--c-text-muted);
+}
+
+@media (min-width: 768px) {
+  .page-title {
+    font-size: var(--fs-3xl);
+  }
+
+  .section-title {
+    font-size: var(--fs-2xl);
+  }
+}
+
+/* --- Butonlar --------------------------------------------------------------
+ * Mobilde dokunma hedefi en az --tap-min (§46). Aksiyon butonları (Ara,
+ * WhatsApp, Yol Tarifi) Faz 3'te bu temel üzerine kurulacak.
+ */
+
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--sp-2);
+  min-height: var(--tap-min);
+  padding: var(--sp-3) var(--sp-5);
+  border-radius: var(--radius-md);
+  border: 1px solid transparent;
+  font-size: var(--fs-base);
+  font-weight: var(--fw-semibold);
+  line-height: 1;
+  text-decoration: none;
+  transition:
+    background-color var(--dur-fast) var(--ease),
+    border-color var(--dur-fast) var(--ease);
+}
+
+.btn--primary {
+  background-color: var(--c-action);
+  color: var(--c-on-action);
+}
+
+.btn--primary:hover {
+  background-color: var(--c-action-strong);
+}
+
+.btn--brand {
+  background-color: var(--c-brand);
+  color: var(--c-on-brand);
+}
+
+.btn--brand:hover {
+  background-color: var(--c-brand-strong);
+}
+
+.btn--secondary {
+  background-color: var(--c-surface);
+  color: var(--c-text);
+  border-color: var(--c-border-strong);
+}
+
+.btn--secondary:hover {
+  background-color: var(--c-bg-subtle);
+}
+
+.btn--block {
+  width: 100%;
+}
+
+.btn[aria-disabled='true'],
+.btn:disabled {
+  opacity: 0.55;
+  pointer-events: none;
+}
+
+/* --- Kart ------------------------------------------------------------------ */
+
+.card {
+  background-color: var(--c-surface);
+  border: 1px solid var(--c-border);
+  border-radius: var(--radius-lg);
+  padding: var(--sp-5);
+  box-shadow: var(--shadow-sm);
+}
+
+/* --- Rozet ----------------------------------------------------------------- */
+
+.badge {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--sp-1);
+  padding: var(--sp-1) var(--sp-3);
+  border-radius: var(--radius-full);
+  font-size: var(--fs-xs);
+  font-weight: var(--fw-semibold);
+  background-color: var(--c-bg-muted);
+  color: var(--c-text-muted);
+}
+
+.badge--verified {
+  background-color: var(--c-action-soft);
+  color: var(--c-action-strong);
+}
+
+.badge--info {
+  background-color: var(--c-info-soft);
+  color: var(--c-info);
+}
+
+.badge--warning {
+  background-color: var(--c-warning-soft);
+  color: var(--c-warning);
+}

@@ -1,6 +1,6 @@
 # PROJECT_PLAN.md — Kütahya Taksi Ağı
 
-> Durum: **FAZ 0 tamamlandı.** Sıradaki: FAZ 1 — Project Foundation.
+> Durum: **FAZ 1 tamamlandı.** Sıradaki: FAZ 2 — Supabase Foundation.
 > Son güncelleme: 8 Eylül 2026
 
 Mimari kararlar ve gerekçeleri için: [ARCHITECTURE.md](./ARCHITECTURE.md)
@@ -42,10 +42,10 @@ online ödeme, yolculuk takibi, komisyon, zorunlu müşteri hesabı.
 OpenStreetMap Overpass API üzerinden Kütahya ili sınırlarında `amenity=taxi` sorgulandı
 (ODbL lisanslı, ticari kullanıma ve yeniden yayına açık kaynak — atıf şartıyla):
 
-| | Sayı |
-|---|---|
+|                                     | Sayı  |
+| ----------------------------------- | ----- |
 | Kütahya ilinde kayıtlı taksi durağı | **8** |
-| Bunlardan isimli olan | 6 |
+| Bunlardan isimli olan               | 6     |
 | Bunlardan **telefon numarası olan** | **1** |
 
 Bulunanlar: İstasyon Taksi, Kent Taksi, Özen Taksi, Pembe Taksi, Sera Taksi
@@ -124,13 +124,34 @@ tüm metinler bu kurala göre yazılacak ve Faz 11'de metin denetimi yapılacak.
 
 Her fazın **Definition of Done**'ı var. DoD sağlanmadan sonraki faza geçilmez.
 
-### FAZ 1 — Project Foundation
+### FAZ 1 — Project Foundation ✅ TAMAMLANDI
 
-Angular 22 workspace (SSR açık), feature klasör iskeleti, routing, environment, design token'lar,
-global error handler, loading/skeleton, 404 sayfası, lint + prettier, ilk Vercel deploy.
+Angular 22 workspace (SSR açık, zoneless), feature klasör iskeleti, routing, environment
+üretim script'i, design token'lar, global error handler, loading/skeleton/empty-state,
+404 sayfası, ESLint + Prettier, Vercel adapter.
 
-**DoD:** `npm run build` temiz · lint temiz · Vercel'de canlı URL · **`curl` ile ham HTML'de
-sunucuda render edilmiş içerik görünüyor (R3 kanıtı)** · 404 doğru status kodu dönüyor.
+**DoD durumu:**
+
+| Kriter | Durum |
+|---|---|
+| `npm run build` temiz | ✅ initial **84.21 kB gzip** (bütçe 120 kB) |
+| Lint temiz | ✅ |
+| Testler | ✅ 11/11 |
+| 404 gerçek HTTP 404 dönüyor | ✅ |
+| **SSR kanıtı (R3)** | ✅ **lokal** — rastgele slug istek anında render ediliyor |
+| Vercel'de canlı URL | ⏳ hesap/domain bağlandığında |
+
+**SSR kanıtı nasıl alındı:** `curl /taksi/deneme-slug-12345` sunucu HTML'inde slug'ı
+döndürdü. Prerender edilmiş bir sayfa bunu üretemez, dolayısıyla SSR istek anında
+çalışıyor. Ayrıca `/panel` sunucu HTML'inde **yok** (Client mode doğru), `/hakkinda` ve
+`/gizlilik` build'de prerender edildi, public sayfalar `s-maxage=300` header'ı taşıyor.
+
+**Faz 1'de ortaya çıkan yeni bulgu — `allowedHosts` (R3'e ek):** Angular SSR, SSRF
+korumasıyla tanınmayan hostname için **tüm sayfalarda 400** döner ve varsayılan liste
+boştur. İlk lokal testte site komple 400 verdi. `src/server.ts` artık host listesini
+`NG_ALLOWED_HOSTS` + Vercel'in otomatik değişkenlerinden toplar. **Özel domain
+bağlandığında `NG_ALLOWED_HOSTS` tanımlanmazsa site tamamen erişilemez olur** —
+Faz 12 kontrol listesine eklendi.
 
 ### FAZ 2 — Supabase Foundation
 
@@ -220,8 +241,16 @@ garanti vaat eden metin yok.
 Vercel production, Supabase production, domain + DNS + SSL, robots/sitemap doğrulaması,
 Search Console, monitoring, smoke test.
 
-**DoD:** domain canlı ve HTTPS · sitemap Search Console'a gönderildi · production smoke test
-geçti · gerçek bir telefon tıklaması analytics'te görünüyor.
+**Domain bağlanınca yapılacak zorunlu ayarlar:**
+
+1. `SITE_URL` = gerçek domain (boşsa production build **durur**)
+2. `NG_ALLOWED_HOSTS` = `domain.com,www.domain.com` (**eksikse site komple 400 döner**)
+3. `ENVIRONMENT=production` (otomatik `noindex`'i kaldırır)
+4. `SUPABASE_URL` + `SUPABASE_ANON_KEY`
+
+**DoD:** domain canlı ve HTTPS · `curl` ile SSR kanıtı production'da tekrarlandı ·
+`noindex` kalktı · sitemap Search Console'a gönderildi · production smoke test geçti ·
+gerçek bir telefon tıklaması analytics'te görünüyor.
 
 ---
 
