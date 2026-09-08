@@ -730,6 +730,23 @@ export type Database = {
         Returns: boolean;
       };
       is_admin: { Args: never; Returns: boolean };
+      nearby_businesses: {
+        Args: { lat: number; lon: number; radius_meters?: number };
+        Returns: {
+          business_name: string;
+          distance_meters: number;
+          district: string;
+          google_maps_url: string;
+          id: string;
+          last_verified_at: string;
+          neighborhood: string;
+          phone_display: string;
+          phone_e164: string;
+          slug: string;
+          verification_status: Database['public']['Enums']['verification_status'];
+          whatsapp_e164: string;
+        }[];
+      };
       normalize_name: { Args: { value: string }; Returns: string };
       normalize_tr_phone: { Args: { value: string }; Returns: string };
       prune_analytics_events: {

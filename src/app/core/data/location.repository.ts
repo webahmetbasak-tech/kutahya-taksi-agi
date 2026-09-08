@@ -3,6 +3,8 @@ import type { Observable } from 'rxjs';
 import { PostgrestClient } from './postgrest.client';
 import type { LocationRow } from './models';
 
+const LOCATION_FIELDS = 'id,slug,name,type,parent_id,latitude,longitude,description';
+
 /**
  * Lokasyon okuma sorguları (§12).
  *
@@ -17,15 +19,24 @@ export class LocationRepository {
   /** Tüm ilçeler, isme göre sıralı — bölge sayfaları ve internal linking için. */
   districts(): Observable<LocationRow[]> {
     return this.client.list<LocationRow>('locations', {
-      select: 'id,slug,name,type,parent_id,latitude,longitude',
+      select: LOCATION_FIELDS,
       type: 'eq.district',
+      order: 'name.asc',
+    });
+  }
+
+  /** Önemli noktalar (havalimanı, otogar, üniversite…) — internal linking için. */
+  landmarks(): Observable<LocationRow[]> {
+    return this.client.list<LocationRow>('locations', {
+      select: LOCATION_FIELDS,
+      type: `in.(landmark,airport,bus_station,university,hospital)`,
       order: 'name.asc',
     });
   }
 
   bySlug(slug: string): Observable<LocationRow | null> {
     return this.client.single<LocationRow>('locations', {
-      select: 'id,slug,name,type,parent_id,description,latitude,longitude',
+      select: LOCATION_FIELDS,
       slug: `eq.${slug}`,
     });
   }

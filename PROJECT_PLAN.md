@@ -1,6 +1,6 @@
 # PROJECT_PLAN.md — Kütahya Taksi Ağı
 
-> Durum: **FAZ 2 tamamlandı.** Sıradaki: FAZ 3 — Public Website.
+> Durum: **FAZ 3 tamamlandı.** Sıradaki: FAZ 4 — SEO Engine.
 > Son güncelleme: 9 Eylül 2026
 
 Mimari kararlar ve gerekçeleri için: [ARCHITECTURE.md](./ARCHITECTURE.md)
@@ -214,13 +214,51 @@ hem yeni formatı tanıyacak şekilde güncellendi.
 kısıtlarının reddedildiğinin kanıtı) **atlandı** — script bunu sessizce "geçti" demek yerine
 açıkça "atlandı" olarak raporluyor. Anahtar verilince `npm run db:test-rls` ile tamamlanacak.
 
-### FAZ 3 — Public Website
+### FAZ 3 — Public Website ✅ TAMAMLANDI
 
-Ana sayfa, `/taksi` listesi, `/taksi/:slug` detay, `/bolge/:slug`, `/hizmet/:slug`,
-taksi kartı (Ara / WhatsApp / Yol Tarifi), mobile-first responsive, boş-durum ekranları.
+Ana sayfa, `/taksi` listesi, `/taksi/:slug` detay, `/bolge` + `/bolge/:slug`, `/hizmet` +
+`/hizmet/:slug`, taksi kartı (Ara/WhatsApp/Yol Tarifi), "Yakınımdaki Taksiler" (§49, PostGIS RPC),
+mobile-first responsive, boş-durum ekranları — hepsi gerçek Supabase verisine bağlı.
 
-**DoD:** tüm sayfalar SSR'da veriyle geliyor · telefon `tel:` çalışıyor · WhatsApp **yalnızca
-`whatsapp_e164` doluysa** görünüyor · a11y denetimi geçiyor · gerçek mobil cihazda test edildi.
+**DoD durumu:**
+
+| Kriter                                    | Durum                                                                        |
+| ----------------------------------------- | ---------------------------------------------------------------------------- |
+| Tüm sayfalar SSR'da veriyle geliyor       | ✅ 15 noktalı smoke test, gerçek Supabase'e karşı                            |
+| Telefon `tel:` çalışıyor                  | ✅                                                                           |
+| WhatsApp yalnızca `whatsapp_e164` doluysa | ✅ testle kanıtlandı                                                         |
+| a11y                                      | kısmi — semantik HTML/landmark/odak yönetimi var, tam AXE taraması Faz 11'de |
+| Gerçek mobil cihaz testi                  | ⏳ Faz 11'de (henüz canlı deployment yok)                                    |
+
+**Yeni:** `/taksi/:slug`, `/bolge/:slug`, `/hizmet/:slug` bulunamayan kayıtlarda **gerçek HTTP
+404** dönüyor — `RESPONSE_INIT` injection token'ı (Angular 22, yalnızca SSR'da mevcut) ile.
+Bu iddia `taxi-detail-page.spec.ts`'te HttpTestingController ile uçtan uca kanıtlandı: boş
+PostgREST yanıtı sonrası `responseInit.status === 404` doğrulandı — kod okuyarak değil, davranış
+gözlemlenerek.
+
+**Henüz eklenmeyenler (bilinçli):**
+
+- `/kutahya-taksi` gibi SEO landing page'leri — canonical kararı netleşmeden açılmayacak (Faz 4).
+- "7/24 taksiler / Havalimanı transferi / Şehirlerarası taksi" ayrı ayrı ana sayfa bölümleri —
+  0 aktif işletmeyle üç neredeyse boş bölüm göstermek gerçek içerik değil doldurma olurdu (§75
+  ruhu). Tek "Hizmetler" bölümü hepsine bağlanıyor; işletme sayısı arttıkça Faz 4'te ayrılabilir.
+- "Yerel rehber" (§22) — gerçek araştırılmış içerik gerektirir, uydurulmaz (§74).
+
+### KRİTİK BULGU — Angular'ın yerleşik TransferState özelliği bu Angular sürümünde bozuk
+
+Faz 2'nin mimari kararı ("`supabase-js` yerine `HttpClient`, çünkü TransferState'i bedava
+kullanırız") test edilince **gerçekte çalışmadığı** ortaya çıktı. Kök neden derlenmiş
+`@angular/platform-server` 22.1.5 kaynağı okunarak doğrulandı: `ngServerMode` bayrağını
+`true` yapması gereken kod hem `platformServer()` hem `@angular/ssr`'ın `provideServerRendering`'i
+içinde **ölü kod** olarak derleniyor — bu satırları kullanan her Angular 22.1.5 SSR uygulamasını
+etkileyen, projeye özgü olmayan bir regresyon. Detay: ARCHITECTURE.md §4.
+
+**Çözüm uygulandı:** `postgrest.client.ts` artık Angular'ın `TransferState` API'sini elle
+kullanıyor (kendi metotları içinde, genel bir interceptor değil). `curl` ile SSR HTML'inde
+gerçek veri görüldü, iki birim testle (sunucu yazıyor / tarayıcı okuyup siliyor, hiç HTTP
+isteği yapmadan) kanıtlandı. Bu, Faz 1'deki `allowedHosts` bulgusuyla aynı kategoride bir
+"kontrol edilmeden varsayılmasın" dersi — mimari dokümanda yazılı bir iddia, gerçek bir SSR
+sunucusuna karşı `curl` ve `ng-state` incelemesiyle doğrulanana kadar kanıtlanmış sayılmadı.
 
 ### FAZ 4 — SEO Engine
 

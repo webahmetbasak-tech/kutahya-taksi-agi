@@ -180,6 +180,39 @@ filtreyi iki yerde tutmak ileride sessiz tutarsızlık üretirdi. Tipler elle ya
 `npm run db:types` ile Supabase şemasından üretiliyor (`database.types.ts`), `models.ts` bunlardan
 türetiyor — şema değişince derleme hatası alınır, sessiz uyuşmazlık olmaz.
 
+### KRİTİK BULGU (Faz 3) — Angular'ın yerleşik TransferState özelliği bu sürümde ÇALIŞMIYOR
+
+`provideClientHydration(withHttpTransferCacheOptions(...))` yukarıda "bedava gelir" deniyordu;
+Faz 3'te curl ile SSR HTML'inin `ng-state` bloğu incelenince **hiçbir HTTP yanıtının
+TransferState'e yazılmadığı** görüldü — tarayıcı her isteği hydration'da tekrar çekiyordu.
+
+**Kök neden doğrulandı** (derlenmiş `@angular/platform-server` 22.1.5 kaynağı okunarak):
+`globalThis.ngServerMode`'u `true` yapması gereken kod hem `platformServer()` hem
+`provideServerRendering()` içinde **ölü kod** olarak derleniyor
+(`const noServerModeSet = false; if (noServerModeSet) {...}` / `if (false) {...}`).
+`withHttpTransferCacheOptions`'ın sunucu tarafı yazma dalı tam olarak bu bayrağın arkasında
+olduğu için hiçbir zaman çalışmıyor. `@angular/ssr`'ın kendi `provideServerRendering`'i de
+içeride bu aynı platform-server fonksiyonunu çağırıyor, yani bu **proje özgü bir yapılandırma
+hatası değil** — bu satırları kullanan her Angular 22.1.5 SSR uygulamasını etkiliyor
+(muhtemelen Angular'ın açık `#64846` "Simplified platform detection helpers" refactor'ının
+yarım kalmış bir ara durumu).
+
+**Çözüm — elle TransferState:** `postgrest.client.ts` artık Angular'ın `TransferState`
+API'sini (`makeStateKey`/`set`/`get`/`hasKey`/`remove`) doğrudan, kendi `list()`/`single()`/`rpc()`
+metotları içinde kullanıyor: sunucuda yanıtı yazıyor, tarayıcıda bir kez okuyup siliyor (sonraki
+navigasyonlar taze veri ister). `insert()` bilerek kapsam dışı — yazma işlemi cache'lenip tekrar
+oynatılmaz. Bu, genel bir `HttpInterceptor` DEĞİL; yalnızca bu istemcinin kendi metotları için
+çalışan, dar kapsamlı bir çözüm.
+
+**Kanıt:** `curl` ile SSR HTML'inin `ng-state` bloğunda `pgrest:["list","locations",...]`
+anahtarlı gerçek veri görüldü; `postgrest.client.spec.ts` iki testle bunu kanıtlıyor —
+sunucu tarafı gerçekten `TransferState.set()` çağırıyor, tarayıcı tarafı önbellek doluyken
+**hiçbir HTTP isteği yapmıyor** ve kaydı bir kullanımdan sonra siliyor.
+
+Angular bu regresyonu düzelttiğinde iki mekanizma (yerleşik + elle) çakışmaz — farklı anahtar
+alanları kullanırlar, zararsızca birlikte var olurlar. `app.config.ts`'teki
+`withHttpTransferCacheOptions` çağrısı bu yüzden kaldırılmadı.
+
 ### `supabase-js` nerede kullanılacak?
 
 Yalnızca **lazy-loaded** `auth`, `dashboard`, `admin`, `claim` feature'larında — Auth (session
@@ -190,7 +223,9 @@ bu chunk'ı hiç indirmez.
 
 ```
 core/data/
-  public-api.client.ts     # PostgREST + HttpClient, SSR-safe, TransferState'li
+  postgrest.client.ts      # PostgREST + HttpClient, SSR-safe, elle TransferState'li
+  database.types.ts        # `npm run db:types` ile üretilir, elle düzenlenmez
+  models.ts                 # database.types.ts'ten türetilen uygulama tipleri
   business.repository.ts   # sorgu kurucular, tipli dönüşler
   location.repository.ts
   service.repository.ts

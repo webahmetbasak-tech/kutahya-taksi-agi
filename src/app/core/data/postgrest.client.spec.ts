@@ -1,4 +1,5 @@
 import { TestBed } from '@angular/core/testing';
+import { PLATFORM_ID, TransferState, makeStateKey } from '@angular/core';
 import { provideHttpClient } from '@angular/common/http';
 import { provideHttpClientTesting, HttpTestingController } from '@angular/common/http/testing';
 import { PostgrestClient } from './postgrest.client';
@@ -92,5 +93,54 @@ describe('PostgrestClient', () => {
     expect(req.request.method).toBe('POST');
     expect(req.request.headers.get('Prefer')).toBe('return=minimal');
     req.flush(null);
+  });
+
+  /**
+   * Bu blok, Angular'ın yerleşik `withHttpTransferCacheOptions`'ının bu
+   * projede çalışmadığı doğrulandıktan sonra elle eklenen TransferState
+   * mekanizmasını test eder (bkz. postgrest.client.ts başlık yorumu).
+   * "SSR'da çekilen veri hydration'da tekrar çekilmez" iddiası burada
+   * kanıtlanır — kod okuyarak değil.
+   */
+  describe('TransferState (elle önbellekleme)', () => {
+    it('tarayıcıda: önbellekte kayıt varsa HİÇBİR HTTP isteği yapılmaz ve kayıt bir kez okunduktan sonra silinir', () => {
+      const transferState = TestBed.inject(TransferState);
+      const key = makeStateKey<unknown>('pgrest:["list","businesses",{"select":"id"}]');
+      transferState.set(key, [{ id: 'cached-1' }]);
+
+      let result: unknown;
+      client.list('businesses', { select: 'id' }).subscribe((value) => (result = value));
+
+      http.expectNone(() => true);
+      expect(result).toEqual([{ id: 'cached-1' }]);
+      expect(transferState.hasKey(key)).toBe(false);
+    });
+
+    it("sunucuda: yanıtı gerçekten TransferState'e yazar", () => {
+      TestBed.resetTestingModule();
+      TestBed.configureTestingModule({
+        providers: [
+          provideHttpClient(),
+          provideHttpClientTesting(),
+          { provide: APP_CONFIG, useValue: config },
+          { provide: PLATFORM_ID, useValue: 'server' },
+        ],
+      });
+
+      const serverClient = TestBed.inject(PostgrestClient);
+      const serverHttp = TestBed.inject(HttpTestingController);
+      const transferState = TestBed.inject(TransferState);
+
+      serverClient.list('businesses', { select: 'id' }).subscribe();
+
+      const req = serverHttp.expectOne((r) => r.url.endsWith('/rest/v1/businesses'));
+      req.flush([{ id: 'server-1' }]);
+
+      const key = makeStateKey<unknown>('pgrest:["list","businesses",{"select":"id"}]');
+      expect(transferState.hasKey(key)).toBe(true);
+      expect(transferState.get(key, null)).toEqual([{ id: 'server-1' }]);
+
+      serverHttp.verify();
+    });
   });
 });

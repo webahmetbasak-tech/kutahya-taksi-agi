@@ -11,6 +11,7 @@ import type { Database } from './database.types';
 
 type Tables = Database['public']['Tables'];
 type Views = Database['public']['Views'];
+type Functions = Database['public']['Functions'];
 
 export type Category = Tables['categories']['Row'];
 export type Service = Tables['services']['Row'];
@@ -19,6 +20,7 @@ export type Business = Tables['businesses']['Row'];
 export type BusinessMedia = Tables['business_media']['Row'];
 export type BusinessHours = Tables['business_hours']['Row'];
 export type LandingPageStats = Views['landing_page_stats']['Row'];
+export type NearbyBusinessRow = Functions['nearby_businesses']['Returns'][number];
 
 export type BusinessStatus = Database['public']['Enums']['business_status'];
 export type VerificationStatus = Database['public']['Enums']['verification_status'];
@@ -44,6 +46,7 @@ export const BUSINESS_CARD_FIELDS = [
   'neighborhood',
   'verification_status',
   'last_verified_at',
+  'google_maps_url',
 ].join(',');
 
 export const BUSINESS_DETAIL_FIELDS = [
@@ -54,7 +57,6 @@ export const BUSINESS_DETAIL_FIELDS = [
   'latitude',
   'longitude',
   'website',
-  'google_maps_url',
   'source_type',
   'updated_at',
 ].join(',');
@@ -72,6 +74,7 @@ export type BusinessCard = Pick<
   | 'neighborhood'
   | 'verification_status'
   | 'last_verified_at'
+  | 'google_maps_url'
 >;
 
 /** Detay sayfası için işletme tipi. */
@@ -84,7 +87,6 @@ export type BusinessDetail = BusinessCard &
     | 'latitude'
     | 'longitude'
     | 'website'
-    | 'google_maps_url'
     | 'source_type'
     | 'updated_at'
   >;

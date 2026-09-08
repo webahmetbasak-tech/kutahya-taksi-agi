@@ -11,8 +11,9 @@ tıkladığını görür.
 - Mimari kararlar ve gerekçeleri: [ARCHITECTURE.md](./ARCHITECTURE.md)
 - Faz planı, riskler ve durum: [PROJECT_PLAN.md](./PROJECT_PLAN.md)
 
-**Durum:** FAZ 2 (Supabase Foundation) tamamlandı. Şema, RLS ve veri katmanı hazır;
-public sayfalar henüz gerçek veri göstermiyor (FAZ 3).
+**Durum:** FAZ 3 (Public Website) tamamlandı. Ana sayfa, taksi listesi/detayı, bölge ve
+hizmet sayfaları gerçek Supabase verisine bağlı. Henüz canlı deployment yok (Vercel — FAZ 12),
+henüz doğrulanmış işletme verisi yok (bkz. PROJECT_PLAN.md R1).
 
 ---
 
@@ -127,10 +128,14 @@ bu testler sessizce "geçti" denmez — açıkça "atlandı" olarak raporlanır.
 ### Veri katmanı
 
 Public sayfalar `supabase-js` **kullanmaz** — Supabase'in PostgREST arayüzüne doğrudan
-`HttpClient` ile gidilir (`core/data/postgrest.client.ts`). Neden: `provideClientHydration`'ın
-transfer cache'i yalnızca `HttpClient` trafiğini yakalar; `supabase-js` kendi `fetch`'ini
-kullandığından sunucuda çekilen veri hydration'da ikinci kez çekilirdi. `supabase-js` yalnızca
-auth/dashboard/admin gibi lazy chunk'larda kullanılacak (Faz 7+). Ayrıntı: ARCHITECTURE.md §4.
+`HttpClient` ile gidilir (`core/data/postgrest.client.ts`). `supabase-js` yalnızca
+auth/dashboard/admin gibi lazy chunk'larda kullanılacak (Faz 7+).
+
+**Faz 3 bulgusu:** Angular'ın yerleşik `withHttpTransferCacheOptions` özelliği bu Angular
+sürümünde (22.1.5) çalışmıyor — `@angular/platform-server`'da `ngServerMode` bayrağını
+ayarlayan kod ölü koda düşmüş (proje özgü değil, framework regresyonu). `postgrest.client.ts`
+bu yüzden `TransferState`'i elle kullanıyor: sunucu yazar, tarayıcı bir kez okuyup siler.
+`curl` ile SSR HTML'inde ve iki birim testte kanıtlandı. Ayrıntı: ARCHITECTURE.md §4.
 
 ---
 
@@ -138,9 +143,12 @@ auth/dashboard/admin gibi lazy chunk'larda kullanılacak (Faz 7+). Ayrıntı: AR
 
 ```
 src/app/
-  core/       config, errors, data (postgrest client + repository'ler)  (ileride: supabase, seo, schema, analytics, guards)
-  shared/     layout (header/footer), ui (spinner, skeleton, empty-state)
-  features/   home, taxis, taxi-detail, business-submit, legal, dashboard, not-found
+  core/       config, errors, data (postgrest client + repository'ler), geo (konum)
+              (ileride: supabase, seo, schema, analytics, guards)
+  shared/     layout (header/footer), ui (spinner, skeleton, empty-state),
+              components (taxi-card, business-list), utils (phone, directions, date)
+  features/   home, taxis, taxi-detail, locations, services, business-submit,
+              legal, dashboard, not-found
 src/styles/   tokens.css, reset.css
 src/environments/  ortam modeli + üretilen dosya (gitignore'da)
 scripts/      generate-env.mjs, rls-test.mjs
@@ -152,11 +160,11 @@ api/          Vercel serverless adapter
 
 Her route'un modu `src/app/app.routes.server.ts` içinde tanımlıdır:
 
-| Mod         | Nerede                             | Neden                                                                              |
-| ----------- | ---------------------------------- | ---------------------------------------------------------------------------------- |
-| `Server`    | `/`, `/taksi`, `/taksi/:slug`, 404 | İçerik veritabanından gelir ve taze kalmalı. CDN'de `s-maxage=300` ile cache'lenir |
-| `Prerender` | `/hakkinda`, `/gizlilik`           | Veriden bağımsız, build zamanında sabitlenebilir                                   |
-| `Client`    | `/panel`                           | SEO'ya konu değil, kimlik doğrulama arkasında                                      |
+| Mod         | Nerede                                                          | Neden                                                                              |
+| ----------- | --------------------------------------------------------------- | ---------------------------------------------------------------------------------- |
+| `Server`    | `/`, `/taksi(/:slug)`, `/bolge(/:slug)`, `/hizmet(/:slug)`, 404 | İçerik veritabanından gelir ve taze kalmalı. CDN'de `s-maxage=300` ile cache'lenir |
+| `Prerender` | `/hakkinda`, `/gizlilik`                                        | Veriden bağımsız, build zamanında sabitlenebilir                                   |
+| `Client`    | `/panel`                                                        | SEO'ya konu değil, kimlik doğrulama arkasında                                      |
 
 `app.routes.server.spec.ts`, her istemci route'unun bir sunucu karşılığı olduğunu
 ve modların/başlıkların doğru olduğunu test eder — yeni route eklerken bu test

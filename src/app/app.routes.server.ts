@@ -37,6 +37,26 @@ export const serverRoutes: ServerRoute[] = [
     headers: { 'Cache-Control': PUBLIC_CACHE },
   },
   {
+    path: 'bolge',
+    renderMode: RenderMode.Server,
+    headers: { 'Cache-Control': PUBLIC_CACHE },
+  },
+  {
+    path: 'bolge/:slug',
+    renderMode: RenderMode.Server,
+    headers: { 'Cache-Control': PUBLIC_CACHE },
+  },
+  {
+    path: 'hizmet',
+    renderMode: RenderMode.Server,
+    headers: { 'Cache-Control': PUBLIC_CACHE },
+  },
+  {
+    path: 'hizmet/:slug',
+    renderMode: RenderMode.Server,
+    headers: { 'Cache-Control': PUBLIC_CACHE },
+  },
+  {
     path: 'isletme-ekle',
     renderMode: RenderMode.Server,
     headers: { 'Cache-Control': STATIC_CACHE },

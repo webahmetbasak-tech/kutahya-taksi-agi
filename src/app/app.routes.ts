@@ -28,6 +28,28 @@ export const routes: Routes = [
       import('@features/taxi-detail/taxi-detail-page').then((m) => m.TaxiDetailPage),
   },
   {
+    path: 'bolge',
+    title: "Kütahya'daki Bölgeler — Kütahya Taksi Ağı",
+    loadComponent: () =>
+      import('@features/locations/location-list-page').then((m) => m.LocationListPage),
+  },
+  {
+    path: 'bolge/:slug',
+    loadComponent: () =>
+      import('@features/locations/location-detail-page').then((m) => m.LocationDetailPage),
+  },
+  {
+    path: 'hizmet',
+    title: 'Hizmetler — Kütahya Taksi Ağı',
+    loadComponent: () =>
+      import('@features/services/service-list-page').then((m) => m.ServiceListPage),
+  },
+  {
+    path: 'hizmet/:slug',
+    loadComponent: () =>
+      import('@features/services/service-detail-page').then((m) => m.ServiceDetailPage),
+  },
+  {
     path: 'isletme-ekle',
     title: 'İşletmemi Yayınla — Kütahya Taksi Ağı',
     loadComponent: () =>

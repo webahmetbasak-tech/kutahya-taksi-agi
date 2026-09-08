@@ -23,6 +23,8 @@ import { RouterLink } from '@angular/router';
           <p class="footer__heading">Keşfet</p>
           <ul class="footer__links">
             <li><a routerLink="/taksi">Tüm Taksiler</a></li>
+            <li><a routerLink="/bolge">Bölgeler</a></li>
+            <li><a routerLink="/hizmet">Hizmetler</a></li>
             <li><a routerLink="/hakkinda">Hakkında</a></li>
           </ul>
         </nav>
@@ -44,6 +46,13 @@ import { RouterLink } from '@angular/router';
 
       <div class="container footer__bottom">
         <p class="muted">© 2026 Kütahya Taksi Ağı</p>
+        <p class="muted footer__attribution">
+          Bölge ve konum verileri
+          <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener">
+            © OpenStreetMap katkıda bulunanları
+          </a>
+          — ODbL lisansı ile.
+        </p>
       </div>
     </footer>
   `,
@@ -98,6 +107,15 @@ import { RouterLink } from '@angular/router';
       margin-block-start: var(--sp-8);
       padding-block-start: var(--sp-4);
       border-top: 1px solid var(--c-border);
+    }
+
+    .footer__attribution {
+      margin-block-start: var(--sp-2);
+      font-size: var(--fs-xs);
+    }
+
+    .footer__attribution a {
+      color: inherit;
     }
 
     @media (min-width: 640px) {
