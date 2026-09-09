@@ -97,7 +97,15 @@ import { AnalyticsService } from '@core/analytics/analytics.service';
         <ul class="chip-row">
           @for (s of services.value() ?? []; track s.id) {
             <li>
-              <a class="chip" [routerLink]="['/hizmet', s.slug]">{{ s.name }}</a>
+              <button
+                type="button"
+                class="chip"
+                [class.chip--active]="s.id === selectedServiceId()"
+                [attr.aria-pressed]="s.id === selectedServiceId()"
+                (click)="selectService(s.id)"
+              >
+                {{ s.name }}
+              </button>
             </li>
           }
         </ul>
@@ -238,36 +246,69 @@ export class HomePage {
     () => this.sortedDistricts().find((l) => l.id === this.effectiveDistrictId())?.name,
   );
 
+  protected readonly services = rxResource({
+    stream: () => this.serviceRepo.list(),
+  });
+
+  /** Hizmet filtresi isteğe bağlıdır — varsayılan olarak hiçbiri seçili değildir (Bölge'nin aksine). */
+  protected readonly selectedServiceId = signal<string | undefined>(undefined);
+  protected readonly selectedServiceName = computed(
+    () => (this.services.value() ?? []).find((s) => s.id === this.selectedServiceId())?.name,
+  );
+
   protected readonly listingHeading = computed(() => {
-    const name = this.selectedDistrictName();
-    return name ? `${name} Taksi İşletmeleri` : "Kütahya'daki Taksi İşletmeleri";
+    const district = this.selectedDistrictName();
+    const service = this.selectedServiceName();
+    const base = district ? `${district} Taksi İşletmeleri` : "Kütahya'daki Taksi İşletmeleri";
+    return service ? `${base} — ${service}` : base;
   });
 
   protected readonly listingEmptyDescription = computed(() => {
-    const name = this.selectedDistrictName();
-    return name
-      ? `${name} bölgesinde henüz yayınlanmış işletme yok. Doğrulanmamış hiçbir numara yayınlanmıyor.`
-      : "Kütahya'daki taksi duraklarının bilgilerini doğrulayarak ekliyoruz. Doğrulanmamış hiçbir numara yayınlanmıyor.";
+    const district = this.selectedDistrictName();
+    const service = this.selectedServiceName();
+    if (district && service) {
+      return `${district} bölgesinde "${service}" hizmeti veren yayınlanmış işletme yok. Doğrulanmamış hiçbir numara yayınlanmıyor.`;
+    }
+    if (district) {
+      return `${district} bölgesinde henüz yayınlanmış işletme yok. Doğrulanmamış hiçbir numara yayınlanmıyor.`;
+    }
+    return "Kütahya'daki taksi duraklarının bilgilerini doğrulayarak ekliyoruz. Doğrulanmamış hiçbir numara yayınlanmıyor.";
   });
 
   /**
-   * §21/§22 — "Popüler Taksi Bölgeleri" çipleri artık bu listeyi FİLTRELER
-   * (sayfa değişmeden); önceden yalnızca `/bolge/:slug`e link veriyordu.
-   * O bağımsız sayfa (`/bolge/:slug`, crawlable, `/bolge` index'inden erişilir)
-   * hâlâ var — bu, homepage'in kendi içindeki hızlı önizleme deneyimi.
+   * §21/§22 — "Popüler Taksi Bölgeleri" VE "Hizmetler" çipleri artık BİRLİKTE bu
+   * listeyi FİLTRELER (sayfa değişmeden): bölge zorunlu/varsayılan (Merkez),
+   * hizmet isteğe bağlı bir ek daraltmadır. Önceden ikisi de yalnızca ilgisiz
+   * `/bolge/:slug`/`/hizmet/:slug`e link veriyordu — "Bölge X seçiliyken Hizmet
+   * Y'ye tıklayınca X'le hiç ilgisi olmayan sonuçlar görünmesi" kafa karıştırıcıydı.
+   * O bağımsız sayfalar (`/bolge/:slug`, `/hizmet/:slug`, crawlable, ilgili index
+   * sayfalarından erişilir) hâlâ var — bu, homepage'in kendi içindeki hızlı
+   * önizleme deneyimi.
    */
   protected readonly businesses = rxResource({
-    params: () => this.effectiveDistrictId(),
-    stream: ({ params }) => (params ? this.businessRepo.byLocation(params) : this.businessRepo.list(12)),
+    params: () => {
+      const districtId = this.effectiveDistrictId();
+      if (districtId === undefined) return undefined; // districts henüz yüklenmedi, bekle
+      return { districtId, serviceId: this.selectedServiceId() };
+    },
+    stream: ({ params }) => {
+      const { districtId, serviceId } = params;
+      if (districtId && serviceId) {
+        return this.businessRepo.forLandingPage({ locationId: districtId, serviceId });
+      }
+      if (districtId) return this.businessRepo.byLocation(districtId);
+      if (serviceId) return this.businessRepo.byService(serviceId);
+      return this.businessRepo.list(12);
+    },
   });
 
   protected selectDistrict(locationId: string): void {
     this.userSelectedDistrictId.set(locationId);
   }
 
-  protected readonly services = rxResource({
-    stream: () => this.serviceRepo.list(),
-  });
+  protected selectService(serviceId: string): void {
+    this.selectedServiceId.update((current) => (current === serviceId ? undefined : serviceId));
+  }
 
   protected readonly nearbyRequested = signal(false);
   private readonly nearbyCoords = signal<{ latitude: number; longitude: number } | undefined>(

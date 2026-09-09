@@ -106,4 +106,46 @@ describe('HomePage', () => {
     expect(el.textContent).toContain('Tavşanlı Taksi');
     expect(tavsanliChip.classList.contains('chip--active')).toBe(true);
   });
+
+  it('bir hizmet çipine tıklanınca bölge+hizmet KESİŞİMİ istenir; tekrar tıklanınca hizmet filtresi kalkar', async () => {
+    const fixture = await setup();
+    http.expectOne((r) => r.url.includes('/rest/v1/locations')).flush(DISTRICTS);
+    http
+      .expectOne((r) => r.url.includes('/rest/v1/services'))
+      .flush([{ id: 'svc-1', slug: 'havalimani-transferi', name: 'Havalimanı Transferi' }]);
+    await tick();
+    http.expectOne((r) => r.url.includes('/rest/v1/business_locations')).flush([]);
+    await tick();
+
+    const el = fixture.nativeElement as HTMLElement;
+    const serviceChip = Array.from(
+      el.querySelectorAll('.chip-row')[1]?.querySelectorAll('.chip') ?? [],
+    ).find((c) => c.textContent?.trim() === 'Havalimanı Transferi') as HTMLButtonElement;
+    if (!serviceChip) throw new Error('Havalimanı Transferi çipi bulunamadı');
+
+    serviceChip.click();
+    fixture.detectChanges();
+
+    const req = http.expectOne(
+      (r) => r.url.includes('/rest/v1/businesses') && !r.url.includes('business_locations'),
+    );
+    expect(req.request.params.get('business_locations.location_id')).toBe('eq.loc-1');
+    expect(req.request.params.get('business_services.service_id')).toBe('eq.svc-1');
+    req.flush([business({ id: 'biz-3', slug: 'havalimani-taksi', business_name: 'Havalimanı Taksi' })]);
+    await tick();
+
+    expect(el.textContent).toContain('Kütahya Merkez Taksi İşletmeleri — Havalimanı Transferi');
+    expect(el.textContent).toContain('Havalimanı Taksi');
+    expect(serviceChip.classList.contains('chip--active')).toBe(true);
+
+    serviceChip.click();
+    fixture.detectChanges();
+
+    const secondReq = http.expectOne((r) => r.url.includes('/rest/v1/business_locations'));
+    expect(secondReq.request.params.get('location_id')).toBe('eq.loc-1');
+    secondReq.flush([]);
+    await tick();
+
+    expect(serviceChip.classList.contains('chip--active')).toBe(false);
+  });
 });
