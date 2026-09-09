@@ -1,4 +1,4 @@
-import { Component, inject, signal } from '@angular/core';
+import { Component, computed, inject, signal } from '@angular/core';
 import { rxResource } from '@angular/core/rxjs-interop';
 import { Router, RouterLink } from '@angular/router';
 import { BusinessRepository } from '@core/data/business.repository';
@@ -68,9 +68,11 @@ import { AnalyticsService } from '@core/analytics/analytics.service';
         </div>
       } @else {
         <ul class="chip-row">
-          @for (loc of districts.value() ?? []; track loc.id) {
+          @for (loc of sortedDistricts(); track loc.id) {
             <li>
-              <a class="chip" [routerLink]="['/bolge', loc.slug]">{{ loc.name }}</a>
+              <a class="chip" [class.chip--active]="loc.slug === 'merkez'" [routerLink]="['/bolge', loc.slug]">
+                {{ loc.name }}
+              </a>
             </li>
           }
         </ul>
@@ -208,6 +210,12 @@ export class HomePage {
 
   protected readonly districts = rxResource({
     stream: () => this.locationRepo.districts(),
+  });
+
+  /** Kütahya Merkez (il merkezi) her zaman listenin BAŞINDA ve vurgulu gösterilir. */
+  protected readonly sortedDistricts = computed(() => {
+    const list = this.districts.value() ?? [];
+    return [...list].sort((a, b) => Number(b.slug === 'merkez') - Number(a.slug === 'merkez'));
   });
 
   protected readonly services = rxResource({

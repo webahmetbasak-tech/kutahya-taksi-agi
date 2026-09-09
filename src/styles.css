@@ -273,3 +273,14 @@
 .chip:hover {
   border-color: var(--c-border-strong);
 }
+
+.chip--active {
+  background-color: var(--c-brand);
+  border-color: var(--c-brand);
+  color: var(--c-on-brand);
+}
+
+.chip--active:hover {
+  background-color: var(--c-brand-strong);
+  border-color: var(--c-brand-strong);
+}
