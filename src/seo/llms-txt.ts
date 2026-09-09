@@ -108,12 +108,12 @@ export async function fetchLlmsTxtData(
     ),
     fetchRows<NamedRow>(
       config,
-      'locations?select=slug,name&type=eq.district&order=name.asc',
+      'locations?select=slug,name&type=eq.district&is_active=eq.true&order=name.asc',
       fetchFn,
     ),
     fetchRows<NamedRow>(
       config,
-      'locations?select=slug,name&type=in.(landmark,airport,bus_station,university,hospital)&order=name.asc',
+      'locations?select=slug,name&type=in.(landmark,airport,bus_station,university,hospital)&is_active=eq.true&order=name.asc',
       fetchFn,
     ),
     fetchRows<NamedRow>(

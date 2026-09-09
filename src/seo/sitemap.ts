@@ -118,10 +118,10 @@ export async function fetchSitemapUrls(
 
   const [businesses, districts, landmarks, services, landingPages] = await Promise.all([
     fetchRows<SlugRow>(config, 'businesses?select=slug,updated_at&status=eq.active', fetchFn),
-    fetchRows<SlugRow>(config, 'locations?select=slug&type=eq.district', fetchFn),
+    fetchRows<SlugRow>(config, 'locations?select=slug&type=eq.district&is_active=eq.true', fetchFn),
     fetchRows<SlugRow>(
       config,
-      'locations?select=slug&type=in.(landmark,airport,bus_station,university,hospital)',
+      'locations?select=slug&type=in.(landmark,airport,bus_station,university,hospital)&is_active=eq.true',
       fetchFn,
     ),
     fetchRows<SlugRow>(config, 'services?select=slug&is_active=eq.true', fetchFn),

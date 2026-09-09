@@ -28,8 +28,8 @@ const TYPE_LABELS: Record<LocationType, string> = {
 };
 
 /**
- * `/admin/bolgeler` — lokasyon yönetimi (Faz 9b). Sert `DELETE` YOK (bkz.
- * `AdminLocationRepository` yorumu).
+ * `/admin/bolgeler` — lokasyon yönetimi (Faz 9b). Sert `DELETE` YOK, yerine
+ * `is_active` ile aktif/pasif (bkz. `AdminLocationRepository` yorumu).
  */
 @Component({
   selector: 'app-admin-locations-page',
@@ -100,10 +100,18 @@ const TYPE_LABELS: Record<LocationType, string> = {
                 <strong>{{ l.name }}</strong>
                 <span class="muted"> — {{ l.slug }}</span>
               </span>
-              <span class="badge badge--info">{{ typeLabel(l.type) }}</span>
+              <span class="location-item__badges">
+                <span class="badge badge--info">{{ typeLabel(l.type) }}</span>
+                <span class="badge" [class]="l.is_active ? 'badge--verified' : 'badge--warning'">
+                  {{ l.is_active ? 'Aktif' : 'Pasif' }}
+                </span>
+              </span>
             </div>
             <div class="actions">
               <button type="button" class="btn btn--secondary" (click)="edit(l)">Düzenle</button>
+              <button type="button" class="btn btn--secondary" (click)="toggleActive(l)">
+                {{ l.is_active ? 'Pasife Al' : 'Aktif Et' }}
+              </button>
             </div>
           </li>
         }
@@ -149,6 +157,12 @@ const TYPE_LABELS: Record<LocationType, string> = {
       gap: var(--sp-3);
     }
 
+    .location-item__badges {
+      display: flex;
+      align-items: center;
+      gap: var(--sp-2);
+    }
+
     .location-item .actions {
       margin-block-start: var(--sp-3);
     }
@@ -192,6 +206,14 @@ export class AdminLocationsPage {
     this.description.set(location.description ?? '');
     this.latitude.set(location.latitude?.toString() ?? '');
     this.longitude.set(location.longitude?.toString() ?? '');
+  }
+
+  protected toggleActive(location: LocationRow): void {
+    this.errorMessage.set(null);
+    this.repo.setActive(location.id, !location.is_active).subscribe({
+      next: () => this.locations.reload(),
+      error: () => this.errorMessage.set('Güncellenemedi. Lütfen tekrar deneyin.'),
+    });
   }
 
   protected resetForm(): void {

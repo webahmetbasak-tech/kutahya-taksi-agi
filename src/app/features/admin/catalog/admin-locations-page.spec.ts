@@ -14,6 +14,7 @@ const LOCATION_ROW = {
   longitude: 29.9833,
   description: null,
   source_type: 'osm',
+  is_active: true,
   created_at: '2026-09-01T00:00:00Z',
 };
 
@@ -139,5 +140,29 @@ describe('AdminLocationsPage', () => {
 
     http.expectOne((r) => r.url.includes('/rest/v1/locations')).flush([]);
     await tick();
+  });
+
+  it('Pasife Al tıklanınca is_active=false PATCH edilir ve listeyi yeniler', async () => {
+    const fixture = await setup();
+    http.expectOne((r) => r.url.includes('/rest/v1/locations')).flush([LOCATION_ROW]);
+    await tick();
+
+    const el = fixture.nativeElement as HTMLElement;
+    expect(el.textContent).toContain('Aktif');
+
+    const toggleBtn = Array.from(el.querySelectorAll('button')).find(
+      (b) => b.textContent?.trim() === 'Pasife Al',
+    ) as HTMLButtonElement;
+    toggleBtn.click();
+
+    const req = http.expectOne((r) => r.url.includes('/rest/v1/locations') && r.method === 'PATCH');
+    expect(req.request.body).toEqual({ is_active: false });
+    req.flush(null);
+    await tick();
+
+    http.expectOne((r) => r.url.includes('/rest/v1/locations')).flush([{ ...LOCATION_ROW, is_active: false }]);
+    await tick();
+
+    expect(el.textContent).toContain('Pasif');
   });
 });

@@ -21,6 +21,7 @@ export class LocationRepository {
     return this.client.list<LocationRow>('locations', {
       select: LOCATION_FIELDS,
       type: 'eq.district',
+      is_active: 'eq.true',
       order: 'name.asc',
     });
   }
@@ -30,6 +31,7 @@ export class LocationRepository {
     return this.client.list<LocationRow>('locations', {
       select: LOCATION_FIELDS,
       type: `in.(landmark,airport,bus_station,university,hospital)`,
+      is_active: 'eq.true',
       order: 'name.asc',
     });
   }
@@ -38,6 +40,7 @@ export class LocationRepository {
     return this.client.single<LocationRow>('locations', {
       select: LOCATION_FIELDS,
       slug: `eq.${slug}`,
+      is_active: 'eq.true',
     });
   }
 
