@@ -93,6 +93,20 @@ export const serverRoutes: ServerRoute[] = [
     headers: { 'Cache-Control': 'private, no-store' },
   },
   {
+    // Faz 9: admin panelin TÜMÜ (bkz. `lazyAdminGuard`) — kimlik doğrulama +
+    // rol kontrolü arkasında, SEO'ya konu değil. `admin/**` çocuk route'ların
+    // hepsini kapsar; ayrıca çıplak `admin`'i de garantiye almak için ikinci
+    // bir giriş.
+    path: 'admin',
+    renderMode: RenderMode.Client,
+    headers: { 'Cache-Control': 'private, no-store' },
+  },
+  {
+    path: 'admin/**',
+    renderMode: RenderMode.Client,
+    headers: { 'Cache-Control': 'private, no-store' },
+  },
+  {
     // landing_pages tablosundan gelen SEO sayfaları (ör. /kutahya-724-taksi).
     // Durum kodu (200/404) component'in kendi RESPONSE_INIT mantığından gelir.
     path: ':slug',

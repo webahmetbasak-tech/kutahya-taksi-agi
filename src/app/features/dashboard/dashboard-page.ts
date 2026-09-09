@@ -7,6 +7,7 @@ import { Spinner } from '@shared/ui/spinner';
 import { Skeleton } from '@shared/ui/skeleton';
 import { SeoService } from '@core/seo/seo.service';
 import { AuthService } from '@core/auth/auth.service';
+import { AdminAccessService } from '@core/auth/admin-access.service';
 import { BusinessRepository } from '@core/data/business.repository';
 import { ClaimRepository } from '@core/data/claim.repository';
 import { AnalyticsRepository } from '@core/data/analytics.repository';
@@ -103,6 +104,10 @@ function summarize(rows: AnalyticsDailyRow[]): BusinessStats {
       } @else {
         <h1 class="page-title">İşletme Paneli</h1>
 
+        @if (adminAccess.isAdmin()) {
+          <a routerLink="/admin" class="btn btn--secondary admin-link">Yönetim Paneline Git</a>
+        }
+
         @if ((businesses.value() ?? []).length === 0) {
           <div class="card notice">
             <p><strong>Henüz sahiplendiğiniz bir işletme yok.</strong></p>
@@ -177,6 +182,11 @@ function summarize(rows: AnalyticsDailyRow[]): BusinessStats {
     .page {
       padding-block: var(--sp-8) var(--sp-12);
       max-width: 46rem;
+    }
+
+    .admin-link {
+      display: inline-flex;
+      margin-block: var(--sp-3) var(--sp-6);
     }
 
     .notice p + p {
@@ -260,6 +270,7 @@ function summarize(rows: AnalyticsDailyRow[]): BusinessStats {
 export class DashboardPage {
   protected readonly isBrowser = signal(isPlatformBrowser(inject(PLATFORM_ID)));
   protected readonly auth = inject(AuthService);
+  protected readonly adminAccess = inject(AdminAccessService);
   private readonly businessRepo = inject(BusinessRepository);
   private readonly claimRepo = inject(ClaimRepository);
   private readonly analyticsRepo = inject(AnalyticsRepository);

@@ -138,6 +138,31 @@ ayarlayan kod ölü koda düşmüş (proje özgü değil, framework regresyonu).
 bu yüzden `TransferState`'i elle kullanıyor: sunucu yazar, tarayıcı bir kez okuyup siler.
 `curl` ile SSR HTML'inde ve iki birim testte kanıtlandı. Ayrıntı: ARCHITECTURE.md §4.
 
+### İlk admin'i oluşturma (Faz 9, R9)
+
+`/admin` yalnızca `profiles.role = 'admin'` olan kullanıcılara açık, ama sistemde henüz hiç
+admin yokken bunu "meşru" şekilde ayarlayacak bir yol yoktu (bkz. PROJECT_PLAN.md R9).
+`protect_profile_role()` trigger'ı artık DAR ve KENDİLİĞİNDEN KAPANAN bir istisna içeriyor:
+sistemde hiç admin yokken, bir kullanıcı YALNIZCA KENDİ satırını admin yapabilir. Bir admin
+var olduğu an bu yol kalıcı olarak kapanır.
+
+1. Normal şekilde `/giris`den bir hesap oluştur (e-posta onayını tamamla).
+2. Tarayıcı konsolunda oturumdaki JWT'yi al (`localStorage`da `sb-<project-ref>-auth-token`
+   anahtarı altında, `access_token` alanı) — ya da Supabase Studio → Authentication'dan
+   kullanıcı ID'ni bul ve Table Editor'de `profiles` tablosunda o satırın `role`'ünü elle
+   `admin` yap (en basit yol budur, aşağıdaki `curl` yalnızca API üzerinden yapmak isteyenler
+   içindir).
+3. API ile yapmak istersen:
+   ```bash
+   curl -X PATCH "https://ierfpvxzknfoyubpnzws.supabase.co/rest/v1/profiles?id=eq.<senin-user-id>" \
+     -H "apikey: <SUPABASE_ANON_KEY>" \
+     -H "Authorization: Bearer <senin-JWT'in>" \
+     -H "Content-Type: application/json" \
+     -d '{"role":"admin"}'
+   ```
+   İkinci bir kullanıcı aynısını denerse (bir admin zaten varken) `42501` hatası alır — bu
+   beklenen davranıştır.
+
 ---
 
 ## Mimari özet

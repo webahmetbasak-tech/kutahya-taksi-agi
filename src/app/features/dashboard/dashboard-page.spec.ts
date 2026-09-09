@@ -5,6 +5,7 @@ import { provideHttpClientTesting, HttpTestingController } from '@angular/common
 import { provideRouter, Router } from '@angular/router';
 import { DashboardPage } from './dashboard-page';
 import { AuthService } from '@core/auth/auth.service';
+import { AdminAccessService } from '@core/auth/admin-access.service';
 import { provideAppConfig } from '@core/config/app-config';
 
 @Component({ template: '' })
@@ -34,7 +35,10 @@ describe('DashboardPage', () => {
     }
   };
 
-  async function configure(auth: ReturnType<typeof mockAuth>) {
+  async function configure(
+    auth: ReturnType<typeof mockAuth>,
+    adminAccess: { isAdmin: ReturnType<typeof signal<boolean>> } = { isAdmin: signal(false) },
+  ) {
     await TestBed.configureTestingModule({
       imports: [DashboardPage],
       providers: [
@@ -43,6 +47,7 @@ describe('DashboardPage', () => {
         provideRouter([{ path: 'giris', component: StubAuthPage }]),
         provideAppConfig(),
         { provide: AuthService, useValue: auth },
+        { provide: AdminAccessService, useValue: { ready: signal(true), ...adminAccess } },
       ],
     }).compileComponents();
 
@@ -129,5 +134,27 @@ describe('DashboardPage', () => {
     const el = fixture.nativeElement as HTMLElement;
     expect(el.textContent).toContain('Reddedildi');
     expect(el.textContent).toContain('Telefon doğrulanamadı.');
+  });
+
+  it('admin ise Yönetim Paneline Git bağlantısı gösterir', async () => {
+    const fixture = await configure(mockAuth(), { isAdmin: signal(true) });
+    fixture.detectChanges();
+
+    http.expectOne((r) => r.url.includes('/rest/v1/businesses')).flush([]);
+    http.expectOne((r) => r.url.includes('/rest/v1/claims')).flush([]);
+    await tick();
+
+    expect(fixture.nativeElement.querySelector('a[href="/admin"]')).not.toBeNull();
+  });
+
+  it('admin değilse Yönetim Paneline Git bağlantısı gösterilmez', async () => {
+    const fixture = await configure(mockAuth());
+    fixture.detectChanges();
+
+    http.expectOne((r) => r.url.includes('/rest/v1/businesses')).flush([]);
+    http.expectOne((r) => r.url.includes('/rest/v1/claims')).flush([]);
+    await tick();
+
+    expect(fixture.nativeElement.querySelector('a[href="/admin"]')).toBeNull();
   });
 });

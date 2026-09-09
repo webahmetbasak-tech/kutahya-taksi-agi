@@ -23,6 +23,7 @@ export type AnalyticsDaily = Tables['analytics_daily']['Row'];
 export type Claim = Tables['claims']['Row'];
 export type ClaimInsert = Tables['claims']['Insert'];
 export type BusinessMediaInsert = Tables['business_media']['Insert'];
+export type Profile = Tables['profiles']['Row'];
 export type LandingPageStats = Views['landing_page_stats']['Row'];
 export type NearbyBusinessRow = Functions['nearby_businesses']['Returns'][number];
 
@@ -79,6 +80,7 @@ export type BusinessStatus = Database['public']['Enums']['business_status'];
 export type VerificationStatus = Database['public']['Enums']['verification_status'];
 export type SourceType = Database['public']['Enums']['source_type'];
 export type LocationType = Database['public']['Enums']['location_type'];
+export type ClaimStatus = Database['public']['Enums']['claim_status'];
 export type AnalyticsEventType = Database['public']['Enums']['analytics_event_type'];
 
 /**
@@ -170,3 +172,67 @@ export type BusinessSubmitInput = Functions['submit_business']['Args'];
 
 /** `submit_business` RPC'sinin döndürdüğü tek satır. */
 export type BusinessSubmitResult = Functions['submit_business']['Returns'][number];
+
+/**
+ * Oturum açmış kullanıcının kendi profili — admin erişim kontrolü (Faz 9,
+ * `AdminAccessService`) ve `/admin/kullanicilar` (Faz 9c) bunu okur.
+ */
+export type ProfileRow = Pick<Profile, 'id' | 'full_name' | 'phone_e164' | 'role' | 'created_at'>;
+
+/**
+ * Admin panelde (Faz 9a) TÜM işletmeler için geniş alan seti — public
+ * `BusinessCard`/`BusinessDetail`'den FARKLI olarak admin-only kolonları da
+ * içerir (`status`, `owner_id`, `possible_duplicate_of`, ...). RLS
+ * (`businesses_select_admin`) zaten yalnızca admin'e açar; bu tip yalnızca
+ * hangi kolonların İSTENDİĞİNİ daraltır.
+ */
+export type AdminBusinessRow = Pick<
+  Business,
+  | 'id'
+  | 'slug'
+  | 'business_name'
+  | 'status'
+  | 'verification_status'
+  | 'plan'
+  | 'phone_e164'
+  | 'phone_display'
+  | 'whatsapp_e164'
+  | 'district'
+  | 'neighborhood'
+  | 'city'
+  | 'address'
+  | 'website'
+  | 'description'
+  | 'owner_id'
+  | 'possible_duplicate_of'
+  | 'source_type'
+  | 'category_id'
+  | 'created_at'
+  | 'updated_at'
+  | 'last_verified_at'
+>;
+
+/**
+ * Admin panelde (Faz 9a) claim inceleme listesi — sahibin kendi `ClaimRow`'undan
+ * FARKLI olarak `user_id`/`contact_phone_e164`/`note` gibi inceleme için
+ * gereken alanları da içerir.
+ */
+export type AdminClaimRow = Pick<
+  Claim,
+  | 'id'
+  | 'business_id'
+  | 'user_id'
+  | 'status'
+  | 'verification_method'
+  | 'contact_phone_e164'
+  | 'note'
+  | 'reviewer_note'
+  | 'submitted_at'
+  | 'approved_at'
+  | 'rejected_at'
+  | 'reviewed_by'
+>;
+
+/** `admin_quick_add_business` RPC'sinin girdisi/sonucu (Faz 9a, §51). */
+export type AdminQuickAddInput = Functions['admin_quick_add_business']['Args'];
+export type AdminQuickAddResult = Functions['admin_quick_add_business']['Returns'][number];

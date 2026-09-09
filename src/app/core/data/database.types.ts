@@ -735,6 +735,26 @@ export type Database = {
       };
     };
     Functions: {
+      admin_quick_add_business: {
+        Args: {
+          p_address?: string;
+          p_business_name: string;
+          p_description?: string;
+          p_district?: string;
+          p_neighborhood?: string;
+          p_phone?: string;
+          p_website?: string;
+          p_whatsapp?: string;
+        };
+        Returns: {
+          id: string;
+          slug: string;
+        }[];
+      };
+      approve_claim: {
+        Args: { p_claim_id: string; p_note?: string };
+        Returns: undefined;
+      };
       can_write_business_media: {
         Args: { object_name: string };
         Returns: boolean;
@@ -762,6 +782,10 @@ export type Database = {
       prune_analytics_events: {
         Args: { retention_days?: number };
         Returns: number;
+      };
+      reject_claim: {
+        Args: { p_claim_id: string; p_note?: string };
+        Returns: undefined;
       };
       resolve_missing_business_slug: {
         Args: { target_slug: string };
@@ -792,6 +816,7 @@ export type Database = {
           slug: string;
         }[];
       };
+      unique_business_slug: { Args: { base_name: string }; Returns: string };
     };
     Enums: {
       analytics_event_type:

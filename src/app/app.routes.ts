@@ -1,4 +1,24 @@
-import type { Routes } from '@angular/router';
+import { EnvironmentInjector, inject, runInInjectionContext } from '@angular/core';
+import type { CanActivateFn, Routes } from '@angular/router';
+import { firstValueFrom } from 'rxjs';
+
+/**
+ * `adminGuard`'ı (ve onun zincirlediği `AuthService` → `supabase-js`'i)
+ * STATİK import ETMEZ — bu dosya `app.config.ts` üzerinden eagerly yüklenir,
+ * yani buradaki her top-level import ana pakete girer (ARCHITECTURE.md §4).
+ * `inject(EnvironmentInjector)` router'ın zaten kurduğu enjeksiyon bağlamı
+ * İÇİNDE (senkron) yakalanır; `.then()` İÇİNDE `runInInjectionContext` ile
+ * o bağlam YENİDEN kurulur — aksi halde `adminGuard`in kendi `inject()`
+ * çağrıları bağlam dışında kalıp fırlatırdı. `firstValueFrom` Observable'ı
+ * TEK bir Promise'e düzleştirir — `CanActivateFn` bir `Promise<Observable<...>>`
+ * kabul ETMEZ, yalnızca `Promise<GuardResult> | Observable<GuardResult>`.
+ */
+const lazyAdminGuard: CanActivateFn = (route, state) => {
+  const injector = inject(EnvironmentInjector);
+  return import('@core/auth/admin.guard').then((m) =>
+    firstValueFrom(runInInjectionContext(injector, () => m.adminGuard(route, state))),
+  );
+};
 
 /**
  * Uygulama route'ları.
@@ -79,6 +99,44 @@ export const routes: Routes = [
   {
     path: 'giris',
     loadComponent: () => import('@features/auth/auth-page').then((m) => m.AuthPage),
+  },
+  {
+    path: 'admin',
+    canActivate: [lazyAdminGuard],
+    loadComponent: () => import('@features/admin/admin-layout').then((m) => m.AdminLayout),
+    children: [
+      {
+        path: '',
+        loadComponent: () =>
+          import('@features/admin/admin-dashboard-page').then((m) => m.AdminDashboardPage),
+      },
+      {
+        path: 'isletmeler',
+        loadComponent: () =>
+          import('@features/admin/businesses/admin-business-list-page').then(
+            (m) => m.AdminBusinessListPage,
+          ),
+      },
+      {
+        path: 'isletmeler/:id',
+        loadComponent: () =>
+          import('@features/admin/businesses/admin-business-detail-page').then(
+            (m) => m.AdminBusinessDetailPage,
+          ),
+      },
+      {
+        path: 'talepler',
+        loadComponent: () =>
+          import('@features/admin/claims/admin-claims-page').then((m) => m.AdminClaimsPage),
+      },
+      {
+        path: 'hizli-ekle',
+        loadComponent: () =>
+          import('@features/admin/quick-add/admin-quick-add-page').then(
+            (m) => m.AdminQuickAddPage,
+          ),
+      },
+    ],
   },
   {
     path: ':slug',

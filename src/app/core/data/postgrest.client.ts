@@ -115,6 +115,20 @@ export class PostgrestClient {
   }
 
   /**
+   * Satır güncelleme (`PATCH`). Admin panelde (Faz 9) RLS + kolon-seviyesi
+   * trigger'ların ZATEN yetkilendirdiği basit alan güncellemeleri için (ör.
+   * işletme durumu, hizmet/lokasyon CRUD'u) — çok kolonlu/CHECK-kısıtlı
+   * geçişler (claim onay/red gibi) yine RPC'de kalır (bkz. `mutateRpc`).
+   * `insert()` gibi cache'lenmez, `Prefer: return=minimal` kullanır.
+   */
+  update<T>(resource: string, match: PostgrestQuery, payload: Partial<T>): Observable<void> {
+    return this.http.patch<void>(`${this.baseUrl}/${resource}`, payload, {
+      headers: { ...this.headers, 'Content-Type': 'application/json', Prefer: 'return=minimal' },
+      params: toParams(match),
+    });
+  }
+
+  /**
    * Yazma amaçlı RPC çağrısı (`POST /rpc/<fn>`) — `volatile`/`SECURITY DEFINER`
    * fonksiyonlar için (ör. `submit_business`). `rpc()`'ten farkı: TransferState'e
    * YAZILMAZ/OKUNMAZ — bir yazma isteğinin cache'lenip tekrar oynatılması ya da

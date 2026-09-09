@@ -474,13 +474,48 @@ yalnızca istemci bağlandı) · 152/152 unit test geçiyor · `SUPABASE_SERVICE
 admin-only trigger genişletmesi canlı fixture'la DEĞİL kod incelemesiyle doğrulandı (bkz. yukarı) ·
 onay sonrası profilin sitemap'e girmesi Faz 9'un admin onay akışına bağlı, bu fazın kapsamı dışında.
 
-### FAZ 9 — Admin Panel
+### FAZ 9 — Admin Panel 🔄 DEVAM EDİYOR (9a tamamlandı, 9 Eylül 2026)
 
 İşletme CRUD, claim inceleme, kullanıcı yönetimi, hizmet/lokasyon yönetimi, review moderasyonu,
 analytics görüntüleme, hızlı veri girişi formu (§51), profil kaldırma talebi kuyruğu (KVKK).
 
-**DoD:** admin olmayan `/admin`'e erişemiyor (guard + RLS, iki katman) · tüm CRUD çalışıyor ·
-admin işlemleri denetlenebilir (`verified_by`, `reviewed_by` doluyor).
+Kapsam büyüklüğü nedeniyle üç alt fazda yürütülüyor: **9a** (temel + işletme/claim moderasyonu,
+tamamlandı) · **9b** (katalog + review + analytics, planlandı) · **9c** (kullanıcılar + KVKK
+kaldırma kuyruğu, planlandı).
+
+**9a — Yapılanlar:**
+- **R9 çözüldü:** `protect_profile_role()` artık dar, kendiliğinden kapanan bir bootstrap
+  istisnası içeriyor — sistemde hiç admin yokken bir kullanıcı YALNIZCA kendi satırını admin
+  yapabilir; bir admin var olduğu an bu yol kalıcı olarak kapanır. Canlıda uçtan uca doğrulandı
+  (bkz. README.md "İlk admin'i oluşturma").
+- `submit_business`in slug üretim döngüsü `unique_business_slug()`e çıkarıldı — hem
+  `submit_business` hem yeni `admin_quick_add_business` (§51) AYNI fonksiyonu paylaşıyor.
+- `approve_claim`/`reject_claim` RPC'leri — çıplak çok-kolonlu `UPDATE` yerine (CHECK kısıtı +
+  audit alanları hataya açık olurdu), `claims_status_timestamps`ı atomik doğru kuruyor,
+  `reviewed_by`/`reviewer_note`yu dolduruyor, ikinci kez işlenmiş bir talebi `P0002` ile reddediyor.
+- Uygulamadaki İLK gerçek route guard'ı (`admin.guard.ts`) — `/admin` altında 8+ ekran olacağı
+  için `ClaimPage`/`DashboardPage`'in effect-redirect deseni yerine tek noktadan uygulanıyor.
+  Guard `supabase-js`'i STATİK import ETMEZ (`app.routes.ts`'teki `lazyAdminGuard` dinamik
+  `import()` + `runInInjectionContext` ile) — aksi halde ana pakete sızardı; build sonrası
+  `main-*.js`'de `createClient` YOK doğrulandı.
+- `PostgrestClient.update()` eklendi (basit alan güncellemeleri için — RLS/trigger zaten
+  yetkilendiriyor, yeni SQL mantığı gerekmiyor).
+- `/admin`, `/admin/isletmeler`, `/admin/isletmeler/:id`, `/admin/talepler`, `/admin/hizli-ekle`
+  — hepsi `RenderMode.Client` + `private, no-store`.
+- **Doğrulama:** yerel Docker Supabase'e karşı kapsamlı bir SQL testiyle (bootstrap sırası,
+  ikinci kullanıcının kendini/başkasını admin yapamaması, quick-add'in admin-only olması,
+  claim onay/red'in `apply_approved_claim` zincirini doğru tetiklemesi, çift-işlemenin
+  reddedilmesi) uçtan uca kanıtlandı, migration linked projeye push edildi. 162/162 unit test.
+
+**Kapsam dışı bırakılanlar (9a-9c toplamında, bilinçli):** `landing_pages` yayın/düzenleme
+aracı, kopya kayıtları birleştirme aracı (yalnızca işaret kaldırma/reddetme var), e-posta ile
+kullanıcı arama (`auth.users`e PostgREST erişimi yok; bunun için yeni bir ayrıcalıklı sunucu
+endpoint'i gerekirdi — bilinçli olarak ertelendi).
+
+**DoD (9a kapsamı):** admin olmayan `/admin`'e erişemiyor (guard + RLS, iki katman, canlıda
+doğrulandı) · işletme durum geçişleri + claim onay/red çalışıyor · admin işlemleri
+denetlenebilir (`reviewed_by`/`reviewer_note` doluyor). Kalan DoD maddeleri (tüm CRUD,
+kullanıcı yönetimi, KVKK kuyruğu) 9b/9c'de tamamlanacak.
 
 ### FAZ 10 — Premium Foundation
 
