@@ -156,9 +156,14 @@ export class AdminClaimsPage {
 
   private readonly noteDrafts = signal<Record<string, string>>({});
 
+  // `params()` bare `undefined` DÖNERSE Angular resource'u "hazır değil,
+  // fetch ETME" sanır — "Tümü" sekmesi `durum` query param'ını URL'den
+  // KALDIRDIĞINDA (`withComponentInputBinding` input'u `undefined` yapar)
+  // liste sonsuza kadar yüklenirdi. `{ status }` nesnesine sarmak params'ın
+  // KENDİSİNİN asla undefined olmamasını garanti eder.
   protected readonly claims = rxResource({
-    params: () => this.durum(),
-    stream: ({ params }) => this.repo.all(params),
+    params: () => ({ status: this.durum() }),
+    stream: ({ params }) => this.repo.all(params.status),
   });
 
   protected readonly formatTrDate = formatTrDate;

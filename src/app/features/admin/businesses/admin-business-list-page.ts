@@ -140,9 +140,13 @@ export class AdminBusinessListPage {
   readonly durum = input<BusinessStatus | undefined>();
   protected readonly tabs = STATUS_TABS;
 
+  // `params()` bare `undefined` DÖNERSE Angular resource'u "hazır değil, fetch
+  // ETME" olarak yorumlar — "Tümü" sekmesinin (durum=undefined, filtresiz)
+  // sayfa İLK AÇILDIĞINDA hiç yüklenmemesine yol açardı. `{ status }` nesnesine
+  // sarmak params'ın KENDİSİNİN asla undefined olmamasını garanti eder.
   protected readonly businesses = rxResource({
-    params: () => this.durum(),
-    stream: ({ params }) => this.repo.all(params),
+    params: () => ({ status: this.durum() }),
+    stream: ({ params }) => this.repo.all(params.status),
   });
 
   protected statusLabel(status: BusinessStatus): string {

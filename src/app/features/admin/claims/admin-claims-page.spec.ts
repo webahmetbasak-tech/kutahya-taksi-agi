@@ -120,4 +120,23 @@ describe('AdminClaimsPage', () => {
 
     expect(el.textContent).toContain('zaten işlenmiş');
   });
+
+  it('"Tümü" sekmesine geçince (durum=undefined) liste TEKRAR YÜKLENİR, sonsuza kadar yüklenmede kalmaz', async () => {
+    const fixture = await setup();
+    http.expectOne((r) => r.url.includes('/rest/v1/claims')).flush([CLAIM_ROW]);
+    await tick();
+
+    // `withComponentInputBinding()` "Tümü" sekmesine tıklanınca `durum` query
+    // param'ını URL'den kaldırır ve input'u `undefined` yapar — tam olarak bu.
+    fixture.componentRef.setInput('durum', undefined);
+    await tick();
+
+    const req = http.expectOne((r) => r.url.includes('/rest/v1/claims'));
+    expect(req.request.params.has('status')).toBe(false);
+    req.flush([CLAIM_ROW, { ...CLAIM_ROW, id: 'claim-2', status: 'approved' }]);
+    await tick();
+
+    const el = fixture.nativeElement as HTMLElement;
+    expect(el.querySelectorAll('.claim-item').length).toBe(2);
+  });
 });

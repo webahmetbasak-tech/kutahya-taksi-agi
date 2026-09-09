@@ -130,9 +130,11 @@ export class AdminReviewsPage {
   protected readonly actionError = signal<string | null>(null);
   protected readonly formatTrDate = formatTrDate;
 
+  // Bkz. AdminClaimsPage'deki aynı yorum — "Tümü" sekmesi `durum`u `undefined`
+  // yaptığında bare `params()` resource'u sonsuza kadar "hazır değil" bırakırdı.
   protected readonly reviews = rxResource({
-    params: () => this.durum(),
-    stream: ({ params }) => this.repo.all(params),
+    params: () => ({ status: this.durum() }),
+    stream: ({ params }) => this.repo.all(params.status),
   });
 
   protected moderate(id: string, status: ReviewStatus): void {

@@ -82,4 +82,20 @@ describe('AdminRemovalRequestsPage', () => {
     http.expectOne((r) => r.url.includes('/rest/v1/removal_requests')).flush([]);
     await tick();
   });
+
+  it('"Tümü" sekmesine geçince (durum=undefined) liste TEKRAR YÜKLENİR, sonsuza kadar yüklenmede kalmaz', async () => {
+    const fixture = await setup();
+    http.expectOne((r) => r.url.includes('/rest/v1/removal_requests')).flush([REQUEST_ROW]);
+    await tick();
+
+    fixture.componentRef.setInput('durum', undefined);
+    await tick();
+
+    const req = http.expectOne((r) => r.url.includes('/rest/v1/removal_requests'));
+    expect(req.request.params.has('status')).toBe(false);
+    req.flush([REQUEST_ROW]);
+    await tick();
+
+    expect(fixture.nativeElement.querySelectorAll('.removal-item').length).toBe(1);
+  });
 });
