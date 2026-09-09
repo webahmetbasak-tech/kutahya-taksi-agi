@@ -145,6 +145,7 @@ describe('TaxiDetailPage', () => {
           verification_status: 'unverified',
           last_verified_at: null,
           google_maps_url: null,
+          plan: 'free',
           description: null,
           address: null,
           city: 'Kütahya',
@@ -159,6 +160,7 @@ describe('TaxiDetailPage', () => {
     http.expectOne((r) => r.url.includes('/rest/v1/business_hours')).flush([]);
     http.expectOne((r) => r.url.includes('/rest/v1/business_services')).flush([]);
     http.expectOne((r) => r.url.includes('/rest/v1/business_locations')).flush([]);
+    http.expectOne((r) => r.url.includes('/rest/v1/business_media')).flush([]);
 
     await fixture.whenStable();
 
@@ -186,6 +188,7 @@ describe('TaxiDetailPage', () => {
           verification_status: 'unverified',
           last_verified_at: null,
           google_maps_url: null,
+          plan: 'free',
           description: null,
           address: null,
           city: 'Kütahya',
@@ -200,6 +203,7 @@ describe('TaxiDetailPage', () => {
     http.expectOne((r) => r.url.includes('/rest/v1/business_hours')).flush([]);
     http.expectOne((r) => r.url.includes('/rest/v1/business_services')).flush([]);
     http.expectOne((r) => r.url.includes('/rest/v1/business_locations')).flush([]);
+    http.expectOne((r) => r.url.includes('/rest/v1/business_media')).flush([]);
 
     await currentFixture.whenStable();
 
@@ -230,6 +234,7 @@ describe('TaxiDetailPage', () => {
           verification_status: 'unverified',
           last_verified_at: null,
           google_maps_url: null,
+          plan: 'free',
           description: null,
           address: null,
           city: 'Kütahya',
@@ -244,6 +249,7 @@ describe('TaxiDetailPage', () => {
     http.expectOne((r) => r.url.includes('/rest/v1/business_hours')).flush([]);
     http.expectOne((r) => r.url.includes('/rest/v1/business_services')).flush([]);
     http.expectOne((r) => r.url.includes('/rest/v1/business_locations')).flush([]);
+    http.expectOne((r) => r.url.includes('/rest/v1/business_media')).flush([]);
 
     await fixture.whenStable();
 
@@ -272,6 +278,7 @@ describe('TaxiDetailPage', () => {
           verification_status: 'unverified',
           last_verified_at: null,
           google_maps_url: null,
+          plan: 'free',
           description: null,
           address: null,
           city: 'Kütahya',
@@ -290,6 +297,7 @@ describe('TaxiDetailPage', () => {
     http
       .expectOne((r) => r.url.includes('/rest/v1/business_locations'))
       .flush([{ location: { id: 'l1', slug: 'merkez', name: 'Kütahya Merkez' } }]);
+    http.expectOne((r) => r.url.includes('/rest/v1/business_media')).flush([]);
 
     await fixture.whenStable();
 
@@ -299,5 +307,49 @@ describe('TaxiDetailPage', () => {
 
     expect(serviceLink?.textContent?.trim()).toBe('7/24 Taksi');
     expect(locationLink?.textContent?.trim()).toBe('Kütahya Merkez');
+  });
+
+  it('fotoğraf varsa galeri gösterir, yoksa galeri bölümü hiç render edilmez (Faz 10, §58)', async () => {
+    const fixture = await setup('zumrut-taksi');
+
+    http
+      .expectOne((r) => r.url.includes('/rest/v1/businesses'))
+      .flush([
+        {
+          id: '1',
+          slug: 'zumrut-taksi',
+          business_name: 'Zümrüt Taksi',
+          phone_e164: '+905551112233',
+          phone_display: null,
+          whatsapp_e164: null,
+          district: 'Merkez',
+          neighborhood: null,
+          verification_status: 'unverified',
+          last_verified_at: null,
+          google_maps_url: null,
+          plan: 'pro',
+          description: null,
+          address: null,
+          city: 'Kütahya',
+          latitude: null,
+          longitude: null,
+          website: null,
+          source_type: 'manual',
+          updated_at: '2026-09-01T00:00:00Z',
+        },
+      ]);
+    await tick();
+    http.expectOne((r) => r.url.includes('/rest/v1/business_hours')).flush([]);
+    http.expectOne((r) => r.url.includes('/rest/v1/business_services')).flush([]);
+    http.expectOne((r) => r.url.includes('/rest/v1/business_locations')).flush([]);
+    http
+      .expectOne((r) => r.url.includes('/rest/v1/business_media'))
+      .flush([{ id: 'm1', storage_path: '1/foto.jpg', alt_text: 'Taksi durağı', media_type: 'photo', sort_order: 0 }]);
+
+    await fixture.whenStable();
+
+    const html = fixture.nativeElement as HTMLElement;
+    expect(html.querySelector('.gallery img')).not.toBeNull();
+    expect(html.textContent).toContain('Öne Çıkan');
   });
 });

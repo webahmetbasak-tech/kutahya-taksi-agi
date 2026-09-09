@@ -2,11 +2,13 @@ import { Component, effect, inject, signal } from '@angular/core';
 import { Router, RouterLink } from '@angular/router';
 import { form, FormField, validate } from '@angular/forms/signals';
 import { BusinessSubmitRepository } from '@core/data/business-submit.repository';
+import { BusinessMediaRepository } from '@core/data/business-media.repository';
 import { BusinessMediaService } from '@core/storage/business-media.service';
 import { AuthService } from '@core/auth/auth.service';
 import { AnalyticsService } from '@core/analytics/analytics.service';
 import { SeoService } from '@core/seo/seo.service';
 import { normalizeTrPhone } from '@shared/utils/phone';
+import { photoErrorMessage } from '@shared/utils/business-media-errors';
 import { Skeleton } from '@shared/ui/skeleton';
 
 /**
@@ -238,6 +240,7 @@ import { Skeleton } from '@shared/ui/skeleton';
 })
 export class BusinessSubmitPage {
   private readonly submitRepo = inject(BusinessSubmitRepository);
+  private readonly mediaRepo = inject(BusinessMediaRepository);
   private readonly mediaService = inject(BusinessMediaService);
   protected readonly auth = inject(AuthService);
   private readonly analytics = inject(AnalyticsService);
@@ -384,8 +387,8 @@ export class BusinessSubmitPage {
       return;
     }
 
-    this.submitRepo
-      .attachMedia({
+    this.mediaRepo
+      .attach({
         business_id: businessId,
         storage_path: uploadResult.storagePath,
         alt_text: altText,
@@ -398,9 +401,9 @@ export class BusinessSubmitPage {
           this.photoFile.set(null);
           this.photoAltText.set('');
         },
-        error: () => {
+        error: (err: unknown) => {
           this.uploadingPhoto.set(false);
-          this.photoError.set('Fotoğraf kaydedilemedi. Lütfen tekrar deneyin.');
+          this.photoError.set(photoErrorMessage(err));
         },
       });
   }

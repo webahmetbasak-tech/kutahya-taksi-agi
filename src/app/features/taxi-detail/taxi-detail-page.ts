@@ -1,7 +1,9 @@
 import { Component, computed, effect, inject, input, RESPONSE_INIT } from '@angular/core';
+import { NgOptimizedImage } from '@angular/common';
 import { rxResource } from '@angular/core/rxjs-interop';
 import { RouterLink } from '@angular/router';
 import { BusinessRepository } from '@core/data/business.repository';
+import { BusinessMediaRepository } from '@core/data/business-media.repository';
 import { ServiceRepository } from '@core/data/service.repository';
 import { LocationRepository } from '@core/data/location.repository';
 import type { BusinessDetail, SlugResolution } from '@core/data/models';
@@ -42,7 +44,7 @@ const SOURCE_LABELS: Record<string, string> = {
  */
 @Component({
   selector: 'app-taxi-detail-page',
-  imports: [RouterLink, Skeleton, Breadcrumb],
+  imports: [RouterLink, Skeleton, Breadcrumb, NgOptimizedImage],
   template: `
     <div class="container page">
       @if (business.isLoading()) {
@@ -64,6 +66,14 @@ const SOURCE_LABELS: Record<string, string> = {
 
         @if (verifiedLabel(); as label) {
           <span class="badge badge--verified detail-badge">{{ label }}</span>
+        }
+        @if (b.plan !== 'free') {
+          <span
+            class="badge badge--info detail-badge"
+            title="Destekleyen üye — sıralamayı etkilemez"
+          >
+            ⭐ Öne Çıkan
+          </span>
         }
 
         <div class="actions">
@@ -98,6 +108,24 @@ const SOURCE_LABELS: Record<string, string> = {
             🗺️ Yol Tarifi
           </a>
         </div>
+
+        @if ((photos.value() ?? []).length > 0) {
+          <section class="section" aria-labelledby="photos-heading">
+            <h2 id="photos-heading" class="section-title">Fotoğraflar</h2>
+            <ul class="gallery">
+              @for (photo of photos.value() ?? []; track photo.id) {
+                <li class="gallery__item">
+                  <img
+                    [ngSrc]="photo.storage_path"
+                    [alt]="photo.alt_text ?? b.business_name"
+                    fill
+                    sizes="(min-width: 768px) 33vw, 50vw"
+                  />
+                </li>
+              }
+            </ul>
+          </section>
+        }
 
         @if (b.description) {
           <section class="section" aria-labelledby="about-heading">
@@ -226,6 +254,25 @@ const SOURCE_LABELS: Record<string, string> = {
       margin-block-end: var(--sp-2);
     }
 
+    .gallery {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(8rem, 1fr));
+      gap: var(--sp-2);
+      list-style: none;
+    }
+
+    .gallery__item {
+      position: relative;
+      aspect-ratio: 4 / 3;
+      border-radius: var(--radius-md);
+      overflow: hidden;
+      background-color: var(--c-bg-muted);
+    }
+
+    .gallery__item img {
+      object-fit: cover;
+    }
+
     .source-info p + p {
       margin-block-start: var(--sp-1);
     }
@@ -261,6 +308,7 @@ const SOURCE_LABELS: Record<string, string> = {
 })
 export class TaxiDetailPage {
   private readonly repo = inject(BusinessRepository);
+  private readonly mediaRepo = inject(BusinessMediaRepository);
   private readonly serviceRepo = inject(ServiceRepository);
   private readonly locationRepo = inject(LocationRepository);
   private readonly responseInit = inject(RESPONSE_INIT, { optional: true });
@@ -281,6 +329,11 @@ export class TaxiDetailPage {
   protected readonly hours = rxResource({
     params: () => this.businessId(),
     stream: ({ params }) => this.repo.hours(params),
+  });
+
+  protected readonly photos = rxResource({
+    params: () => this.businessId(),
+    stream: ({ params }) => this.mediaRepo.forBusiness(params),
   });
 
   /** §42 entity ilişkileri: bu işletmenin sunduğu hizmetlere GERİ link. */

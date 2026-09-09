@@ -11,10 +11,12 @@ import {
 } from '@angular/router';
 import { provideHttpClient, withFetch } from '@angular/common/http';
 import { provideClientHydration, withHttpTransferCacheOptions } from '@angular/platform-browser';
+import { IMAGE_LOADER, type ImageLoaderConfig } from '@angular/common';
 
 import { routes } from './app.routes';
 import { provideAppConfig } from '@core/config/app-config';
 import { GlobalErrorHandler } from '@core/errors/global-error-handler';
+import { environment } from '@env';
 
 export const appConfig: ApplicationConfig = {
   providers: [
@@ -57,5 +59,17 @@ export const appConfig: ApplicationConfig = {
         filter: (req) => req.method === 'GET',
       }),
     ),
+
+    // `ngSrc` işletme fotoğrafları için Storage'daki GÖRECELİ yolu taşır (ör.
+    // `<business_id>/<dosya>.jpg`); bu loader onu tam public URL'e çevirir.
+    // Supabase'in ücretli görsel dönüştürme uç noktası (`/render/image/...`,
+    // WebP/AVIF + boyutlandırma) BİLEREK kullanılmadı — bu projenin Supabase
+    // katmanında etkin olduğu doğrulanmadı; etkinleştiğinde `config.width`
+    // burada `?width=`e bağlanabilir (ARCHITECTURE.md §13'ün hedefi budur).
+    {
+      provide: IMAGE_LOADER,
+      useValue: (config: ImageLoaderConfig) =>
+        `${environment.supabaseUrl}/storage/v1/object/public/business-media/${config.src}`,
+    },
   ],
 };

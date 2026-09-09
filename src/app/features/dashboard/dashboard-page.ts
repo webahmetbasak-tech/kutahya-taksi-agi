@@ -13,6 +13,7 @@ import { ClaimRepository } from '@core/data/claim.repository';
 import { AnalyticsRepository } from '@core/data/analytics.repository';
 import type { BusinessStatus, ClaimRow, OwnedBusinessRow } from '@core/data/models';
 import { summarizeDailyStats, type BusinessStats } from '@shared/utils/analytics-stats';
+import { BusinessPhotoManager } from './business-photo-manager';
 
 const BUSINESS_STATUS_LABELS: Record<BusinessStatus, string> = {
   pending: 'İnceleniyor',
@@ -60,7 +61,7 @@ const CLAIM_STATUS_BADGE_CLASS: Record<ClaimRow['status'], string> = {
  */
 @Component({
   selector: 'app-dashboard-page',
-  imports: [RouterLink, Spinner, Skeleton],
+  imports: [RouterLink, Spinner, Skeleton, BusinessPhotoManager],
   template: `
     <div class="container page">
       @if (!isBrowser()) {
@@ -123,6 +124,17 @@ const CLAIM_STATUS_BADGE_CLASS: Record<ClaimRow['status'], string> = {
                       </div>
                     </dl>
                     <p class="muted stats__note">Son 30 gün</p>
+                  }
+
+                  <button
+                    type="button"
+                    class="btn btn--secondary photos-toggle"
+                    (click)="togglePhotos(b.id)"
+                  >
+                    {{ isPhotosOpen(b.id) ? 'Fotoğrafları Gizle' : 'Fotoğrafları Yönet' }}
+                  </button>
+                  @if (isPhotosOpen(b.id)) {
+                    <app-business-photo-manager [businessId]="b.id" [plan]="b.plan" />
                   }
                 </li>
               }
@@ -233,6 +245,10 @@ const CLAIM_STATUS_BADGE_CLASS: Record<ClaimRow['status'], string> = {
       margin-block-start: var(--sp-2);
     }
 
+    .photos-toggle {
+      margin-block-start: var(--sp-3);
+    }
+
     .claim-item__note {
       margin-block-start: var(--sp-2);
       font-size: var(--fs-sm);
@@ -279,6 +295,24 @@ export class DashboardPage {
 
   protected statsFor(businessId: string): BusinessStats | undefined {
     return this.stats.value()?.get(businessId);
+  }
+
+  private readonly openPhotoManagers = signal<ReadonlySet<string>>(new Set());
+
+  protected isPhotosOpen(businessId: string): boolean {
+    return this.openPhotoManagers().has(businessId);
+  }
+
+  protected togglePhotos(businessId: string): void {
+    this.openPhotoManagers.update((open) => {
+      const next = new Set(open);
+      if (next.has(businessId)) {
+        next.delete(businessId);
+      } else {
+        next.add(businessId);
+      }
+      return next;
+    });
   }
 
   protected statusLabel(status: BusinessStatus): string {

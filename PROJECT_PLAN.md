@@ -564,12 +564,47 @@ işletme/claim/review durum geçişleri çalışıyor · admin işlemleri denetl
 analitik görüntüleme çalışıyor · kullanıcı rol yönetimi çalışıyor · KVKK kaldırma talebi
 oturumsuz da açılabiliyor ve admin kuyruğunda çözülebiliyor.
 
-### FAZ 10 — Premium Foundation
+### FAZ 10 — Premium Foundation ✅ TAMAMLANDI (9 Eylül 2026)
 
 `plan` alanı, feature flag altyapısı, abonelik-hazır şema. **Ödeme entegrasyonu yok** —
 gerçekten gerekli olduğunda eklenir.
 
-**DoD:** flag'ler çalışıyor · hiçbir premium özellik sıralama garantisi vaat etmiyor (§58).
+Spec bu fazda hangi ÖZELLİĞİN plana bağlı olacağını söylemiyordu (`§58` yalnızca "sıralama
+garantisi verme" kısıtını koyuyordu) — kullanıcıyla netleştirildi: "Öne çıkan rozet + sınırsız
+fotoğraf" seçildi (sıralamaya dokunmayan, görsel/içerik odaklı bir ilk özellik).
+
+**Yapılanlar:**
+- `business_media_enforce_limit` trigger'ı — free planda `media_type='photo'` için en fazla 3
+  kayıt, pro/premium sınırsız. `logo`/`cover` limitten MUAF (tekil varlıklar, galeri değil).
+  Sıralama/görünürlük sorgularına HİÇ dokunmuyor (§58, R8).
+- "⭐ Öne Çıkan" rozeti — TEK bir paylaşılan bileşende (`taxi-card.ts`) eklendiği için tüm
+  liste sayfalarında (taksi listesi, bölge/hizmet sayfaları, yakınımdaki taksiler, ana sayfa)
+  otomatik göründü. Rozetin `title` özniteliği "sıralamayı etkilemez" diye açıkça belirtiyor.
+- `nearby_businesses` (Faz 5) `plan` DÖNDÜRMÜYORDU — rozet "yakınımdaki taksiler" sonuçlarında
+  hiç görünmezdi; RPC'nin `RETURNS TABLE` listesi genişletildi (`create or replace` bunu
+  yapamadığı için `drop` + `create`).
+- Fotoğraf galerisi ilk kez GÖSTERİLMEYE başlandı (`taxi-detail-page.ts`) — Faz 8'den beri
+  yükleniyordu ama hiçbir yerde render edilmiyordu. `NgOptimizedImage` projede İLK KEZ
+  kullanıldı; `IMAGE_LOADER` Supabase Storage'ın public object URL'ine çeviriyor. Supabase'in
+  ücretli görsel dönüştürme uç noktası (WebP/AVIF + boyutlandırma, ARCHITECTURE.md §13'ün
+  hedefi) BİLİNÇLİ olarak kullanılmadı — bu projenin Supabase katmanında etkin olduğu
+  doğrulanmadı; loader ileride oraya bağlanabilir.
+- Sahip artık kendi fotoğraflarını YÖNETEBİLİYOR (`/panel`de `BusinessPhotoManager`) —
+  Faz 8'de yalnızca İLK başvuru sırasında fotoğraf eklenebiliyordu, sonradan hiç. Ekleme/silme;
+  silme hem `business_media` satırını hem Storage nesnesini temizliyor.
+- `PostgrestClient.remove()` (DELETE) eklendi — ilk gerçek kullanım alanı budur.
+- Küçük bir refactor: `BusinessSubmitRepository.attachMedia()` yeni paylaşılan
+  `BusinessMediaRepository`e taşındı (tek sorumluluk — "başvuru" ile "galeri yönetimi" ayrı
+  kavramlar, ikisi de aynı `business_media` tablosuna yazıyordu).
+- Admin işletme düzenleme formuna plan seçici eklendi (`/admin/isletmeler/:id`) — plan hâlâ
+  yalnızca admin tarafından elle değiştiriliyor, ödeme akışı yok.
+- **Doğrulama:** yerel Docker'a karşı SQL testi — free planda tam 3 fotoğraf kabul, 4.
+  `23514` ile reddediliyor, logo/cover muaf, pro planda 5 fotoğraf (limiti aşarak) kabul,
+  `nearby_businesses` artık `plan` döndürüyor. 180/180 unit test, `main-*.js`de `createClient`
+  yok (build sonrası doğrulandı).
+
+**DoD:** flag çalışıyor (fotoğraf sınırı, canlıda doğrulandı) · hiçbir premium özellik sıralama
+garantisi vaat etmiyor (rozet metni/`title`'ı açık, hiçbir `ORDER BY` plana göre değişmiyor).
 
 ### FAZ 11 — Production Hardening
 

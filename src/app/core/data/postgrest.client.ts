@@ -129,6 +129,18 @@ export class PostgrestClient {
   }
 
   /**
+   * Satır silme (`DELETE`). `update()` gibi RLS'in zaten yetkilendirdiği
+   * durumlar için (ör. Faz 10'da bir işletme sahibinin kendi fotoğrafını
+   * silmesi, `business_media_owner_write` RLS'i). Cache'lenmez.
+   */
+  remove(resource: string, match: PostgrestQuery): Observable<void> {
+    return this.http.delete<void>(`${this.baseUrl}/${resource}`, {
+      headers: { ...this.headers, Prefer: 'return=minimal' },
+      params: toParams(match),
+    });
+  }
+
+  /**
    * Yazma amaçlı RPC çağrısı (`POST /rpc/<fn>`) — `volatile`/`SECURITY DEFINER`
    * fonksiyonlar için (ör. `submit_business`). `rpc()`'ten farkı: TransferState'e
    * YAZILMAZ/OKUNMAZ — bir yazma isteğinin cache'lenip tekrar oynatılması ya da

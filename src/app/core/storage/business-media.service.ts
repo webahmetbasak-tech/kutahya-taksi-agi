@@ -48,4 +48,10 @@ export class BusinessMediaService {
     }
     return { storagePath: path };
   }
+
+  /** Storage'daki dosyayı siler — `business_media` satırının silinmesiyle EŞ ZAMANLI değil, ayrı bir adım. */
+  async remove(storagePath: string): Promise<{ error: string } | undefined> {
+    const { error } = await this.auth.storageClient().from('business-media').remove([storagePath]);
+    return error ? { error: "Görsel storage'dan silinemedi." } : undefined;
+  }
 }

@@ -830,6 +830,7 @@ export type Database = {
           neighborhood: string;
           phone_display: string;
           phone_e164: string;
+          plan: Database['public']['Enums']['business_plan'];
           slug: string;
           verification_status: Database['public']['Enums']['verification_status'];
           whatsapp_e164: string;

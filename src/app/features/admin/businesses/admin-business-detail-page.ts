@@ -3,7 +3,7 @@ import { rxResource } from '@angular/core/rxjs-interop';
 import { RouterLink } from '@angular/router';
 import { form, FormField, validate } from '@angular/forms/signals';
 import { AdminBusinessRepository } from '@core/data/admin-business.repository';
-import type { AdminBusinessRow, BusinessStatus } from '@core/data/models';
+import type { AdminBusinessRow, BusinessPlan, BusinessStatus } from '@core/data/models';
 import { SeoService } from '@core/seo/seo.service';
 import { normalizeTrPhone } from '@shared/utils/phone';
 import { Skeleton } from '@shared/ui/skeleton';
@@ -164,6 +164,18 @@ const STATUS_LABELS: Record<BusinessStatus, string> = {
           </select>
         </div>
 
+        <div class="field">
+          <label class="field__label" for="edit-plan">Plan</label>
+          <select id="edit-plan" class="field__input" [formField]="editForm.plan">
+            <option value="free">Ücretsiz</option>
+            <option value="pro">Pro</option>
+            <option value="premium">Premium</option>
+          </select>
+          <p class="muted field__hint">
+            Pro/Premium: "Öne Çıkan" rozeti + sınırsız fotoğraf (§58 — sıralamayı ETKİLEMEZ).
+          </p>
+        </div>
+
         <button type="submit" class="btn btn--brand" [disabled]="saving()">
           {{ saving() ? 'Kaydediliyor…' : 'Kaydet' }}
         </button>
@@ -214,6 +226,11 @@ const STATUS_LABELS: Record<BusinessStatus, string> = {
       resize: vertical;
       font-family: inherit;
     }
+
+    .field__hint {
+      margin-block-start: var(--sp-1);
+      font-size: var(--fs-xs);
+    }
   `,
 })
 export class AdminBusinessDetailPage {
@@ -242,6 +259,7 @@ export class AdminBusinessDetailPage {
     website: '',
     description: '',
     verified: 'false',
+    plan: 'free' as BusinessPlan,
   });
 
   protected readonly editForm = form(this.editModel, (path) => {
@@ -291,6 +309,7 @@ export class AdminBusinessDetailPage {
           website: b.website ?? '',
           description: b.description ?? '',
           verified: b.verification_status === 'verified' ? 'true' : 'false',
+          plan: b.plan,
         });
       }
     });
@@ -345,6 +364,7 @@ export class AdminBusinessDetailPage {
       website: model.website.trim() || null,
       description: model.description.trim() || null,
       verification_status: model.verified === 'true' ? 'verified' : 'unverified',
+      plan: model.plan,
     };
 
     this.repo.updateFields(id, patch).subscribe({

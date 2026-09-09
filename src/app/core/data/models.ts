@@ -86,6 +86,8 @@ export type ClaimStatus = Database['public']['Enums']['claim_status'];
 export type ReviewStatus = Database['public']['Enums']['review_status'];
 export type RemovalRequestStatus = Database['public']['Enums']['removal_request_status'];
 export type UserRole = Database['public']['Enums']['user_role'];
+export type BusinessPlan = Database['public']['Enums']['business_plan'];
+export type MediaType = Database['public']['Enums']['media_type'];
 export type AnalyticsEventType = Database['public']['Enums']['analytics_event_type'];
 
 /**
@@ -107,6 +109,7 @@ export const BUSINESS_CARD_FIELDS = [
   'verification_status',
   'last_verified_at',
   'google_maps_url',
+  'plan',
 ].join(',');
 
 export const BUSINESS_DETAIL_FIELDS = [
@@ -135,6 +138,7 @@ export type BusinessCard = Pick<
   | 'verification_status'
   | 'last_verified_at'
   | 'google_maps_url'
+  | 'plan'
 >;
 
 /** Detay sayfası için işletme tipi. */
@@ -155,6 +159,16 @@ export type BusinessDetail = BusinessCard &
 export type BusinessHoursRow = Pick<
   BusinessHours,
   'day_of_week' | 'opens_at' | 'closes_at' | 'is_24h' | 'is_closed'
+>;
+
+/**
+ * Fotoğraf galerisi satırı (Faz 8'de yazılan, Faz 10'da görüntülenmeye/
+ * yönetilmeye başlanan `business_media`). `media_type='photo'` filtresi
+ * repository'de uygulanır — `logo`/`cover` galeri DEĞİLDİR (§58 yorumuna bkz.).
+ */
+export type BusinessMediaRow = Pick<
+  BusinessMedia,
+  'id' | 'storage_path' | 'alt_text' | 'media_type' | 'sort_order'
 >;
 
 /** Panel istatistik satırı — RLS (`analytics_daily_select_own`) yalnızca sahibine/admin'e açar. */

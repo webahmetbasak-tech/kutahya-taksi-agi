@@ -1,7 +1,7 @@
 import { inject, Injectable } from '@angular/core';
 import { map, type Observable } from 'rxjs';
 import { PostgrestClient } from './postgrest.client';
-import type { BusinessMediaInsert, BusinessSubmitInput, BusinessSubmitResult } from './models';
+import type { BusinessSubmitInput, BusinessSubmitResult } from './models';
 
 /**
  * İşletme öz-başvurusu (Faz 8, §26).
@@ -25,10 +25,5 @@ export class BusinessSubmitRepository {
         return row;
       }),
     );
-  }
-
-  /** Başvuru sonrası eklenen fotoğraf referansı (storage yüklemesi ayrı, bkz. `BusinessMediaService`). */
-  attachMedia(row: BusinessMediaInsert): Observable<void> {
-    return this.client.insert('business_media', row);
   }
 }

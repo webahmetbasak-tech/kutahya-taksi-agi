@@ -18,6 +18,7 @@ function business(overrides: Partial<BusinessCard> = {}): BusinessCard {
     verification_status: 'unverified',
     last_verified_at: null,
     google_maps_url: null,
+    plan: 'free',
     ...overrides,
   };
 }
@@ -91,6 +92,20 @@ describe('TaxiCard', () => {
     const el = fixture.nativeElement as HTMLElement;
 
     expect(el.querySelector('.badge--verified')?.textContent).toContain('İşletme sahibi doğruladı');
+  });
+
+  it('free planda "Öne Çıkan" rozeti göstermez', async () => {
+    const fixture = await setup({ plan: 'free' });
+    const el = fixture.nativeElement as HTMLElement;
+
+    expect(el.textContent).not.toContain('Öne Çıkan');
+  });
+
+  it('pro/premium planda "Öne Çıkan" rozeti gösterir (§58 — sıralamayı etkilemez)', async () => {
+    const fixture = await setup({ plan: 'pro' });
+    const el = fixture.nativeElement as HTMLElement;
+
+    expect(el.textContent).toContain('Öne Çıkan');
   });
 
   it('mesafe verilmişse km/m olarak gösterir', async () => {

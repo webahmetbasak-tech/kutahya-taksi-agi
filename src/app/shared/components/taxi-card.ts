@@ -25,9 +25,16 @@ import { formatTrDate } from '@shared/utils/date';
         <h3 class="taxi-card__name">
           <a [routerLink]="['/taksi', business().slug]">{{ business().business_name }}</a>
         </h3>
-        @if (verifiedLabel(); as label) {
-          <span class="badge badge--verified">{{ label }}</span>
-        }
+        <span class="taxi-card__badges">
+          @if (verifiedLabel(); as label) {
+            <span class="badge badge--verified">{{ label }}</span>
+          }
+          @if (business().plan !== 'free') {
+            <span class="badge badge--info" title="Destekleyen üye — sıralamayı etkilemez">
+              ⭐ Öne Çıkan
+            </span>
+          }
+        </span>
       </header>
 
       @if (locationLabel(); as loc) {
@@ -87,6 +94,13 @@ import { formatTrDate } from '@shared/utils/date';
       align-items: flex-start;
       justify-content: space-between;
       gap: var(--sp-2);
+    }
+
+    .taxi-card__badges {
+      display: flex;
+      flex-wrap: wrap;
+      gap: var(--sp-1);
+      justify-content: flex-end;
     }
 
     .taxi-card__name {
