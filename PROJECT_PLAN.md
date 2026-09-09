@@ -431,13 +431,48 @@ formu gizler) · owner yalnızca izinli kolonları güncelleyebiliyor (`protect_
 Faz 2'den beri var, bu fazda değişmedi) · e2e akış testi geçiyor (canlı DB'de trigger zinciri +
 146/146 unit test) · `SUPABASE_SERVICE_ROLE_KEY` hâlâ yok, bazı RLS fixture testleri hâlâ atlanıyor.
 
-### FAZ 8 — Business Submission
+### FAZ 8 — Business Submission ✅ TAMAMLANDI (9 Eylül 2026)
 
 `/isletme-ekle` formu, doğrulama, telefon normalizasyonu, duplicate tespiti (§52 — otomatik
 silme yok, admin'e işaretlenir), fotoğraf upload, `pending` → admin onayı → `active`.
 
-**DoD:** geçersiz telefon reddediliyor · duplicate uyarısı çalışıyor · pending kayıt public'te
-görünmüyor · onay sonrası profil canlı ve sitemap'e giriyor.
+**Yapılanlar:**
+- `submit_business()` RPC (`20260909130000_business_submission.sql`) — tek atomik `SECURITY
+  DEFINER` fonksiyon: giriş doğrulama, telefon/whatsapp normalizasyonu (tanınmayan biçim
+  SESSİZCE null değil, açıkça reddedilir), `slugify()` ile slug üretimi + hem aktif hem geçmiş
+  slug'lara karşı benzersizlik, §52 olası kopya tespiti (aynı telefon YA DA isim benzerliği
+  >0.4 — `pg_trgm`). Doğrudan `INSERT` policy YOK (Faz 2'nin RLS notunda bilinçli bırakılmış
+  boşluk buradan kapatıldı); yalnızca `authenticated` çağırabilir, çağıran kullanıcı otomatik
+  `owner_id` olur.
+- `possible_duplicate_of` kolonu eklendi ve `protect_business_admin_columns` trigger'ı
+  GÜNCELLENDİ: sahip kendi kaydını `businesses_update_own` ile PATCH edebildiği için, bu kolon
+  admin-only listesine eklenmezse sahip kendi olası-kopya işaretini sessizce temizleyebilirdi.
+  İki katmanlı korumanın (RLS + trigger) FAZ 8'DE DE tutarlı kalması için Faz 2'den beri var olan
+  trigger fonksiyonu `create or replace` ile genişletildi.
+- İstemci: `PostgrestClient.mutateRpc()` eklendi — mevcut `rpc()`'ten FARKLI, `volatile`/
+  `SECURITY DEFINER` yazma RPC'leri için (TransferState'e YAZILMAZ/OKUNMAZ; `rpc()` yalnızca
+  `stable`/`SECURITY INVOKER` okuma RPC'leri içindir, bu ayrım bilinçli korundu).
+  `BusinessSubmitRepository`, `BusinessMediaService` (Storage upload — `AuthService`'in AYNI
+  `SupabaseClient` örneğini paylaşır, ikinci bir `createClient()` ayrı oturum durumu demek olurdu).
+- `/isletme-ekle` `RenderMode.Server`'dan `RenderMode.Client`'a taşındı — Faz 1'deki statik
+  "yakında" iskeletinin aksine artık oturum gerektiren gerçek bir form (`sahiplen`/`panel` ile
+  aynı gerekçe).
+- **Doğrulama:** yerel Docker Supabase yığınıyla (`supabase db reset`) migration gerçek
+  Postgres'e karşı uçtan uca test edildi — slug üretimi, §52 duplicate tespiti (aynı isim/telefonla
+  ikinci başvuru `possible_duplicate=true` ve `-2` slug'ı üretti) ve geçersiz telefon reddi
+  `psql` ile doğrulandı; ardından makine bellek baskısına girip Docker durduruldu, migration
+  linked projeye `db push` edildi (temiz uygulandı) ve tipler `db:types --linked`'dan yeniden
+  üretildi. `protect_business_admin_columns` genişletmesi Docker kapandıktan sonra eklendiği için
+  canlıda AYRI bir fixture testiyle (kullanıcı oturumu + PATCH denemesi) doğrulanmadı — yalnızca
+  kod incelemesi + zaten çalışan 8 satırla birebir aynı örüntü + hatasız `db push`. `db:test-rls`
+  (19/19 geçti) mevcut güvenlik sınırının bozulmadığını doğruladı.
+
+**DoD:** geçersiz telefon reddediliyor (canlıda doğrulandı) · duplicate uyarısı çalışıyor (canlıda
+doğrulandı, UI'da sarı banner) · pending kayıt public'te görünmüyor (`businesses_select_active`
+Faz 2'den beri değişmedi) · fotoğraf upload çalışıyor (Storage RLS Faz 2'den beri hazırdı, bu fazda
+yalnızca istemci bağlandı) · 152/152 unit test geçiyor · `SUPABASE_SERVICE_ROLE_KEY` hâlâ yok,
+admin-only trigger genişletmesi canlı fixture'la DEĞİL kod incelemesiyle doğrulandı (bkz. yukarı) ·
+onay sonrası profilin sitemap'e girmesi Faz 9'un admin onay akışına bağlı, bu fazın kapsamı dışında.
 
 ### FAZ 9 — Admin Panel
 

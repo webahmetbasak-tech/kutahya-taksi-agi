@@ -223,9 +223,14 @@ yazma işlemleri için. Public kullanıcı bu chunk'ı hiç indirmez.
 **Faz 7'de doğrulandı:** `AuthService` (`core/auth/auth.service.ts`) `@supabase/supabase-js`'i
 içe aktarıyor; production build'de `createClient` string'i yalnızca paylaşılan bir LAZY chunk'ta
 bulundu (`grep`le doğrulandı) — main/initial bundle'da YOK. Ayrı bir `core/supabase/` klasörü
-yerine `core/auth/` altında tutuldu çünkü Faz 7'nin TEK ihtiyacı Auth'tu; Storage için Faz 8'de
-ayrı bir `core/storage/` (yine lazy) eklenecek — supabase-js istemcisini burada TEKRAR
-oluşturmak yerine muhtemelen `AuthService`'in `getClient()`'ı paylaşılacak.
+yerine `core/auth/` altında tutuldu çünkü Faz 7'nin TEK ihtiyacı Auth'tu.
+
+**Faz 8'de eklendi:** `core/storage/business-media.service.ts` — planlandığı gibi supabase-js
+istemcisini BURADA TEKRAR OLUŞTURMAZ; `AuthService.storageClient()` (yeni, dar bir public
+metot) üzerinden AYNI `SupabaseClient` örneğini paylaşır. Gerekçe: ikinci bir `createClient()`
+ayrı bir oturum durumu/dinleyici anlamına gelirdi — Storage çağrılarının Authorization başlığında
+kullanıcının JWT'sini taşıması için AYNI client örneğinin session state'ine ihtiyaç var.
+Faz 8 sonrası `main-*.js`'de yine `createClient`/`GoTrueClient` YOK (build sonrası doğrulandı).
 
 ### KRİTİK KARAR (Faz 7) — `PostgrestClient` artık kullanıcının JWT'sini gönderiyor
 
