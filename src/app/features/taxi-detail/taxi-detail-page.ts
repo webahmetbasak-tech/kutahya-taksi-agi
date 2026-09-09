@@ -152,6 +152,9 @@ const SOURCE_LABELS: Record<string, string> = {
           <h2 id="source-heading" class="section-title">Bilgi kaynağı ve güncellik</h2>
           <p class="muted">{{ sourceLabel() }}</p>
           <p class="muted">Son güncelleme: {{ updatedLabel() }}</p>
+          <a class="removal-link" [routerLink]="['/taksi', b.slug, 'kaldirma-talebi']">
+            Bu profilin kaldırılmasını talep et
+          </a>
         </section>
 
         <section class="section owner-cta" aria-labelledby="owner-heading">
@@ -225,6 +228,13 @@ const SOURCE_LABELS: Record<string, string> = {
 
     .source-info p + p {
       margin-block-start: var(--sp-1);
+    }
+
+    .removal-link {
+      display: inline-block;
+      margin-block-start: var(--sp-3);
+      font-size: var(--fs-sm);
+      color: var(--c-text-muted);
     }
 
     .owner-cta {

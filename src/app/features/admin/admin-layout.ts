@@ -24,6 +24,8 @@ import { RouterLink, RouterLinkActive, RouterOutlet } from '@angular/router';
         <a routerLink="/admin/bolgeler" routerLinkActive="is-active">Bölgeler</a>
         <a routerLink="/admin/degerlendirmeler" routerLinkActive="is-active">Değerlendirmeler</a>
         <a routerLink="/admin/analitik" routerLinkActive="is-active">Analitik</a>
+        <a routerLink="/admin/kaldirma-talepleri" routerLinkActive="is-active">Kaldırma Talepleri</a>
+        <a routerLink="/admin/kullanicilar" routerLinkActive="is-active">Kullanıcılar</a>
       </nav>
       <router-outlet />
     </div>

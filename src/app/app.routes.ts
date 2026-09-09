@@ -60,6 +60,11 @@ export const routes: Routes = [
     loadComponent: () => import('@features/claim/claim-page').then((m) => m.ClaimPage),
   },
   {
+    path: 'taksi/:slug/kaldirma-talebi',
+    loadComponent: () =>
+      import('@features/removal-request/removal-request-page').then((m) => m.RemovalRequestPage),
+  },
+  {
     path: 'bolge',
     loadComponent: () =>
       import('@features/locations/location-list-page').then((m) => m.LocationListPage),
@@ -159,6 +164,18 @@ export const routes: Routes = [
           import('@features/admin/analytics/admin-analytics-page').then(
             (m) => m.AdminAnalyticsPage,
           ),
+      },
+      {
+        path: 'kaldirma-talepleri',
+        loadComponent: () =>
+          import('@features/admin/removals/admin-removal-requests-page').then(
+            (m) => m.AdminRemovalRequestsPage,
+          ),
+      },
+      {
+        path: 'kullanicilar',
+        loadComponent: () =>
+          import('@features/admin/users/admin-users-page').then((m) => m.AdminUsersPage),
       },
     ],
   },

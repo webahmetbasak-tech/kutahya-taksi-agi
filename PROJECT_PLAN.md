@@ -128,11 +128,11 @@ ATLAMAZ (trigger `is_admin()`'i koşulsuz çağırır, çağıran rolden bağım
 `apply_approved_claim()` trigger zincirini canlıda doğrularken (bkz. bu fazın raporu) bunu
 `alter table profiles disable trigger profiles_protect_role` ile GEÇİCİ olarak atlayıp, testi bir
 `rollback`'e sararak keşfettim — production'da bu manevrayı kimse manuel yapmamalı.
-**Azaltma (Faz 9'da çözülecek):** ya (a) `supabase/seed.sql`'e superuser bağlamında çalışan
-tek seferlik bir "ilk admin" INSERT/UPDATE'i eklenir (migration değil, migration geçmişi
-production'da tekrar çalışmaz), ya da (b) trigger'a `current_setting('role') = 'postgres'` gibi
-superuser bağlamı için AÇIK bir istisna eklenir. Şimdilik bilinen, dokümante edilmiş bir boşluk;
-gerçek kullanıcı verisi yokken (R1) aciliyeti düşük.
+**✅ ÇÖZÜLDÜ (Faz 9a):** `protect_profile_role()`e dar, kendiliğinden kapanan bir istisna eklendi
+— seçenek (b)'nin bir varyantı: superuser bağlamı yerine "sistemde hiç admin yokken kullanıcı
+YALNIZCA kendi satırını admin yapabilir" kuralı, çünkü bu normal bir oturum açmış kullanıcının
+UI'dan tetikleyebileceği bir yol (superuser-context kontrolü yalnızca raw SQL konsolundan
+çalışırdı). Bkz. FAZ 9 raporu ve README.md "İlk admin'i oluşturma".
 
 ---
 
@@ -474,14 +474,13 @@ yalnızca istemci bağlandı) · 152/152 unit test geçiyor · `SUPABASE_SERVICE
 admin-only trigger genişletmesi canlı fixture'la DEĞİL kod incelemesiyle doğrulandı (bkz. yukarı) ·
 onay sonrası profilin sitemap'e girmesi Faz 9'un admin onay akışına bağlı, bu fazın kapsamı dışında.
 
-### FAZ 9 — Admin Panel 🔄 DEVAM EDİYOR (9a-9b tamamlandı, 9 Eylül 2026)
+### FAZ 9 — Admin Panel ✅ TAMAMLANDI (9 Eylül 2026)
 
 İşletme CRUD, claim inceleme, kullanıcı yönetimi, hizmet/lokasyon yönetimi, review moderasyonu,
 analytics görüntüleme, hızlı veri girişi formu (§51), profil kaldırma talebi kuyruğu (KVKK).
 
-Kapsam büyüklüğü nedeniyle üç alt fazda yürütülüyor: **9a** (temel + işletme/claim moderasyonu,
-tamamlandı) · **9b** (katalog + review + analytics, tamamlandı) · **9c** (kullanıcılar + KVKK
-kaldırma kuyruğu, planlandı).
+Kapsam büyüklüğü nedeniyle üç alt fazda yürütüldü: **9a** (temel + işletme/claim moderasyonu) ·
+**9b** (katalog + review + analytics) · **9c** (kullanıcılar + KVKK kaldırma kuyruğu).
 
 **9a — Yapılanlar:**
 - **R9 çözüldü:** `protect_profile_role()` artık dar, kendiliğinden kapanan bir bootstrap
@@ -530,16 +529,40 @@ denetlenebilir (`reviewed_by`/`reviewer_note` doluyor).
   `shared/utils/analytics-stats.ts`e çıkarıldı (gerçek kod tekrarı, erken soyutlama değil).
 - 166/166 unit test, `main-*.js`de yine `createClient` yok (build sonrası doğrulandı).
 
-**Kapsam dışı bırakılanlar (9a-9c toplamında, bilinçli):** `landing_pages` yayın/düzenleme
-aracı, kopya kayıtları birleştirme aracı (yalnızca işaret kaldırma/reddetme var), e-posta ile
-kullanıcı arama (`auth.users`e PostgREST erişimi yok; bunun için yeni bir ayrıcalıklı sunucu
-endpoint'i gerekirdi — bilinçli olarak ertelendi), hizmet/lokasyon sert silme (yukarı bkz.).
+**9c — Yapılanlar:**
+- `removal_requests` tablosu + `request_business_removal` RPC'si (§56) — `submit_business` ile
+  AYNI desen (doğrudan `INSERT` policy yok, tek giriş yolu SECURITY DEFINER RPC), ama BİLEREK
+  `anon`a da açık: numarası kamuya açık paylaşılmış bir taksicinin hesabı hiç olmayabilir,
+  kaldırma talep etmek için kayıt olmaya zorlanmamalı.
+- `/taksi/:slug/kaldirma-talebi` — `taxi-detail-page`'e eklenen "Bu profilin kaldırılmasını
+  talep et" bağlantısından ulaşılır (ARCHITECTURE.md §12'nin gerektirdiği asgari önlem).
+  `ClaimPage`/`BusinessSubmitPage`den FARKLI olarak BİLEREK oturum GEREKTİRMEZ.
+- `/admin/kaldirma-talepleri` — kuyruk, `completed`/`dismissed` çözümü `resolved_at`/
+  `resolved_by` ile birlikte (CHECK kısıtı ikisinin tutarlı olmasını zorunlu kılıyor).
+- `/admin/kullanicilar` — rol değişimi (`protect_profile_role` zaten yetkilendiriyor, yeni SQL
+  gerekmedi). E-posta ile arama BİLİNÇLİ olarak YOK.
+- **Canlıda keşfedilen gerçek hata:** `request_business_removal`in ilk taslağında
+  `not exists (select 1 from businesses where id = p_business_id)` — fonksiyon `returns table
+  (id uuid)` olduğu için `id` PL/pgSQL'de fonksiyonun kendi çıktı değişkeniyle ÇAKIŞTI
+  ("column reference id is ambiguous"). Yerel Docker'a karşı ilk test koşumunda yakalandı,
+  tablo takma adıyla (`b.id`) düzeltildi — bu projede zaten süregelen bir kural (`submit_business`
+  hep `c.id`/`b.id` kullanıyordu), burada bir kez atlanmıştı.
+- **Doğrulama:** yerel Docker'a karşı uçtan uca SQL testi — anon (oturumsuz) talep açabiliyor,
+  boş sebep/var olmayan işletme reddediliyor, anon kuyruğu OKUYAMIYOR (tablo `GRANT`'i bile yok,
+  RLS'e gerek kalmadan), admin olmayan bir kullanıcı talebi çözemiyor, admin çözebiliyor,
+  `resolved_at` olmadan `completed` CHECK kısıtına takılıyor. Migration linked projeye push
+  edildi, tipler oradan yeniden üretildi. 171/171 unit test, `main-*.js`de `createClient` yok.
 
-**DoD (9a+9b kapsamı):** admin olmayan `/admin`'e erişemiyor (guard + RLS, iki katman, canlıda
-doğrulandı) · işletme durum geçişleri + claim/review onay-red çalışıyor · admin işlemleri
-denetlenebilir (`reviewed_by`/`reviewer_note` doluyor) · hizmet/lokasyon CRUD çalışıyor ·
-analitik görüntüleme çalışıyor. Kalan DoD maddeleri (kullanıcı yönetimi, KVKK kuyruğu) 9c'de
-tamamlanacak.
+**Kapsam dışı bırakılanlar (bilinçli):** `landing_pages` yayın/düzenleme aracı, kopya kayıtları
+birleştirme aracı (yalnızca işaret kaldırma/reddetme var), e-posta ile kullanıcı arama
+(`auth.users`e PostgREST erişimi yok; yeni bir ayrıcalıklı sunucu endpoint'i gerekirdi),
+hizmet/lokasyon sert silme (cascade/set-null side effect'leri riskli).
+
+**DoD:** admin olmayan `/admin`'e erişemiyor (guard + RLS, iki katman, canlıda doğrulandı) ·
+işletme/claim/review durum geçişleri çalışıyor · admin işlemleri denetlenebilir
+(`reviewed_by`/`reviewer_note`/`resolved_by` doluyor) · hizmet/lokasyon CRUD çalışıyor ·
+analitik görüntüleme çalışıyor · kullanıcı rol yönetimi çalışıyor · KVKK kaldırma talebi
+oturumsuz da açılabiliyor ve admin kuyruğunda çözülebiliyor.
 
 ### FAZ 10 — Premium Foundation
 

@@ -43,6 +43,13 @@ export const serverRoutes: ServerRoute[] = [
     headers: { 'Cache-Control': 'private, no-store' },
   },
   {
+    // Faz 9c, KVKK (§56): oturum GEREKTİRMEZ ama bir "profil" değil bir form —
+    // SEO'ya konu değil, sunucuda render edilmez.
+    path: 'taksi/:slug/kaldirma-talebi',
+    renderMode: RenderMode.Client,
+    headers: { 'Cache-Control': 'private, no-store' },
+  },
+  {
     path: 'bolge',
     renderMode: RenderMode.Server,
     headers: { 'Cache-Control': PUBLIC_CACHE },

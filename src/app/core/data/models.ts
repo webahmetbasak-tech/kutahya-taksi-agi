@@ -25,6 +25,7 @@ export type ClaimInsert = Tables['claims']['Insert'];
 export type BusinessMediaInsert = Tables['business_media']['Insert'];
 export type Profile = Tables['profiles']['Row'];
 export type Review = Tables['reviews']['Row'];
+export type RemovalRequest = Tables['removal_requests']['Row'];
 export type LandingPageStats = Views['landing_page_stats']['Row'];
 export type NearbyBusinessRow = Functions['nearby_businesses']['Returns'][number];
 
@@ -83,6 +84,8 @@ export type SourceType = Database['public']['Enums']['source_type'];
 export type LocationType = Database['public']['Enums']['location_type'];
 export type ClaimStatus = Database['public']['Enums']['claim_status'];
 export type ReviewStatus = Database['public']['Enums']['review_status'];
+export type RemovalRequestStatus = Database['public']['Enums']['removal_request_status'];
+export type UserRole = Database['public']['Enums']['user_role'];
 export type AnalyticsEventType = Database['public']['Enums']['analytics_event_type'];
 
 /**
@@ -253,3 +256,17 @@ export type AdminReviewRow = Pick<
 /** Admin panelde (Faz 9b) hizmet/lokasyon CRUD girdileri. */
 export type ServiceInsert = Tables['services']['Insert'];
 export type LocationInsert = Tables['locations']['Insert'];
+
+/**
+ * Admin panelde (Faz 9c) KVKK kaldırma talebi kuyruğu — hangi işletmeye ait
+ * olduğunu göstermek için `businesses(business_name,slug)` embed edilir.
+ */
+export type AdminRemovalRequestRow = Pick<
+  RemovalRequest,
+  'id' | 'business_id' | 'reason' | 'contact_email' | 'status' | 'created_at'
+> & {
+  business: Pick<Business, 'business_name' | 'slug'> | null;
+};
+
+/** `request_business_removal` RPC'sinin girdisi (Faz 9c, §56). */
+export type RequestRemovalInput = Functions['request_business_removal']['Args'];

@@ -620,6 +620,64 @@ export type Database = {
         };
         Relationships: [];
       };
+      removal_requests: {
+        Row: {
+          business_id: string;
+          contact_email: string | null;
+          created_at: string;
+          id: string;
+          reason: string;
+          requested_by: string | null;
+          resolved_at: string | null;
+          resolved_by: string | null;
+          status: Database['public']['Enums']['removal_request_status'];
+        };
+        Insert: {
+          business_id: string;
+          contact_email?: string | null;
+          created_at?: string;
+          id?: string;
+          reason: string;
+          requested_by?: string | null;
+          resolved_at?: string | null;
+          resolved_by?: string | null;
+          status?: Database['public']['Enums']['removal_request_status'];
+        };
+        Update: {
+          business_id?: string;
+          contact_email?: string | null;
+          created_at?: string;
+          id?: string;
+          reason?: string;
+          requested_by?: string | null;
+          resolved_at?: string | null;
+          resolved_by?: string | null;
+          status?: Database['public']['Enums']['removal_request_status'];
+        };
+        Relationships: [
+          {
+            foreignKeyName: 'removal_requests_business_id_fkey';
+            columns: ['business_id'];
+            isOneToOne: false;
+            referencedRelation: 'businesses';
+            referencedColumns: ['id'];
+          },
+          {
+            foreignKeyName: 'removal_requests_requested_by_fkey';
+            columns: ['requested_by'];
+            isOneToOne: false;
+            referencedRelation: 'profiles';
+            referencedColumns: ['id'];
+          },
+          {
+            foreignKeyName: 'removal_requests_resolved_by_fkey';
+            columns: ['resolved_by'];
+            isOneToOne: false;
+            referencedRelation: 'profiles';
+            referencedColumns: ['id'];
+          },
+        ];
+      };
       reviews: {
         Row: {
           author_id: string | null;
@@ -787,6 +845,16 @@ export type Database = {
         Args: { p_claim_id: string; p_note?: string };
         Returns: undefined;
       };
+      request_business_removal: {
+        Args: {
+          p_business_id: string;
+          p_contact_email?: string;
+          p_reason: string;
+        };
+        Returns: {
+          id: string;
+        }[];
+      };
       resolve_missing_business_slug: {
         Args: { target_slug: string };
         Returns: Database['public']['CompositeTypes']['slug_resolution'];
@@ -843,6 +911,7 @@ export type Database = {
         | 'university'
         | 'bus_station';
       media_type: 'logo' | 'photo' | 'cover';
+      removal_request_status: 'pending' | 'completed' | 'dismissed';
       review_status: 'pending' | 'approved' | 'rejected';
       source_type:
         'manual' | 'public_business_listing' | 'owner_submitted' | 'owner_verified' | 'osm';
@@ -999,6 +1068,7 @@ export const Constants = {
         'bus_station',
       ],
       media_type: ['logo', 'photo', 'cover'],
+      removal_request_status: ['pending', 'completed', 'dismissed'],
       review_status: ['pending', 'approved', 'rejected'],
       source_type: [
         'manual',
