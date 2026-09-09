@@ -474,13 +474,13 @@ yalnızca istemci bağlandı) · 152/152 unit test geçiyor · `SUPABASE_SERVICE
 admin-only trigger genişletmesi canlı fixture'la DEĞİL kod incelemesiyle doğrulandı (bkz. yukarı) ·
 onay sonrası profilin sitemap'e girmesi Faz 9'un admin onay akışına bağlı, bu fazın kapsamı dışında.
 
-### FAZ 9 — Admin Panel 🔄 DEVAM EDİYOR (9a tamamlandı, 9 Eylül 2026)
+### FAZ 9 — Admin Panel 🔄 DEVAM EDİYOR (9a-9b tamamlandı, 9 Eylül 2026)
 
 İşletme CRUD, claim inceleme, kullanıcı yönetimi, hizmet/lokasyon yönetimi, review moderasyonu,
 analytics görüntüleme, hızlı veri girişi formu (§51), profil kaldırma talebi kuyruğu (KVKK).
 
 Kapsam büyüklüğü nedeniyle üç alt fazda yürütülüyor: **9a** (temel + işletme/claim moderasyonu,
-tamamlandı) · **9b** (katalog + review + analytics, planlandı) · **9c** (kullanıcılar + KVKK
+tamamlandı) · **9b** (katalog + review + analytics, tamamlandı) · **9c** (kullanıcılar + KVKK
 kaldırma kuyruğu, planlandı).
 
 **9a — Yapılanlar:**
@@ -514,8 +514,32 @@ endpoint'i gerekirdi — bilinçli olarak ertelendi).
 
 **DoD (9a kapsamı):** admin olmayan `/admin`'e erişemiyor (guard + RLS, iki katman, canlıda
 doğrulandı) · işletme durum geçişleri + claim onay/red çalışıyor · admin işlemleri
-denetlenebilir (`reviewed_by`/`reviewer_note` doluyor). Kalan DoD maddeleri (tüm CRUD,
-kullanıcı yönetimi, KVKK kuyruğu) 9b/9c'de tamamlanacak.
+denetlenebilir (`reviewed_by`/`reviewer_note` doluyor).
+
+**9b — Yapılanlar:** yeni SQL YOK — `services_admin_write`/`locations_admin_write`/
+`reviews_admin_all` Faz 2'den beri hazırdı, yalnızca istemci tarafı eklendi.
+- `/admin/hizmetler`, `/admin/bolgeler` — ekleme/düzenleme var, BİLİNÇLİ olarak sert `DELETE`
+  YOK (`business_services`/`business_locations` `on delete cascade`, `landing_pages`
+  `on delete set null` — silme işletme/landing page ilişkilerini SESSİZCE bozardı; hizmetler
+  bunun yerine `is_active` ile yayından kaldırılıyor).
+- `/admin/degerlendirmeler` — review onay/red, düz `PATCH` (claim'in aksine çok kolonlu bir
+  CHECK kısıtı yok).
+- `/admin/analitik` — Faz 6'nın `AnalyticsRepository.dailyStats()`ı YENİDEN KULLANILDI (RLS
+  zaten admin için tüm işletmeleri döndürüyor); yalnızca işletme seçici eklendi.
+- `DashboardPage`/`AdminAnalyticsPage`nin ortak istatistik özetleme mantığı
+  `shared/utils/analytics-stats.ts`e çıkarıldı (gerçek kod tekrarı, erken soyutlama değil).
+- 166/166 unit test, `main-*.js`de yine `createClient` yok (build sonrası doğrulandı).
+
+**Kapsam dışı bırakılanlar (9a-9c toplamında, bilinçli):** `landing_pages` yayın/düzenleme
+aracı, kopya kayıtları birleştirme aracı (yalnızca işaret kaldırma/reddetme var), e-posta ile
+kullanıcı arama (`auth.users`e PostgREST erişimi yok; bunun için yeni bir ayrıcalıklı sunucu
+endpoint'i gerekirdi — bilinçli olarak ertelendi), hizmet/lokasyon sert silme (yukarı bkz.).
+
+**DoD (9a+9b kapsamı):** admin olmayan `/admin`'e erişemiyor (guard + RLS, iki katman, canlıda
+doğrulandı) · işletme durum geçişleri + claim/review onay-red çalışıyor · admin işlemleri
+denetlenebilir (`reviewed_by`/`reviewer_note` doluyor) · hizmet/lokasyon CRUD çalışıyor ·
+analitik görüntüleme çalışıyor. Kalan DoD maddeleri (kullanıcı yönetimi, KVKK kuyruğu) 9c'de
+tamamlanacak.
 
 ### FAZ 10 — Premium Foundation
 

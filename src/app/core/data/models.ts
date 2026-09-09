@@ -24,6 +24,7 @@ export type Claim = Tables['claims']['Row'];
 export type ClaimInsert = Tables['claims']['Insert'];
 export type BusinessMediaInsert = Tables['business_media']['Insert'];
 export type Profile = Tables['profiles']['Row'];
+export type Review = Tables['reviews']['Row'];
 export type LandingPageStats = Views['landing_page_stats']['Row'];
 export type NearbyBusinessRow = Functions['nearby_businesses']['Returns'][number];
 
@@ -81,6 +82,7 @@ export type VerificationStatus = Database['public']['Enums']['verification_statu
 export type SourceType = Database['public']['Enums']['source_type'];
 export type LocationType = Database['public']['Enums']['location_type'];
 export type ClaimStatus = Database['public']['Enums']['claim_status'];
+export type ReviewStatus = Database['public']['Enums']['review_status'];
 export type AnalyticsEventType = Database['public']['Enums']['analytics_event_type'];
 
 /**
@@ -236,3 +238,18 @@ export type AdminClaimRow = Pick<
 /** `admin_quick_add_business` RPC'sinin girdisi/sonucu (Faz 9a, §51). */
 export type AdminQuickAddInput = Functions['admin_quick_add_business']['Args'];
 export type AdminQuickAddResult = Functions['admin_quick_add_business']['Returns'][number];
+
+/**
+ * Admin panelde (Faz 9b) review moderasyonu — hangi işletmeye ait olduğunu
+ * göstermek için `businesses(business_name,slug)` embed edilir.
+ */
+export type AdminReviewRow = Pick<
+  Review,
+  'id' | 'business_id' | 'rating' | 'review_text' | 'status' | 'created_at'
+> & {
+  business: Pick<Business, 'business_name' | 'slug'> | null;
+};
+
+/** Admin panelde (Faz 9b) hizmet/lokasyon CRUD girdileri. */
+export type ServiceInsert = Tables['services']['Insert'];
+export type LocationInsert = Tables['locations']['Insert'];

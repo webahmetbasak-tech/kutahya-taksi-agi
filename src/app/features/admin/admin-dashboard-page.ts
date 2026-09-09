@@ -3,6 +3,7 @@ import { rxResource } from '@angular/core/rxjs-interop';
 import { RouterLink } from '@angular/router';
 import { AdminBusinessRepository } from '@core/data/admin-business.repository';
 import { AdminClaimRepository } from '@core/data/admin-claim.repository';
+import { AdminReviewRepository } from '@core/data/admin-review.repository';
 import { SeoService } from '@core/seo/seo.service';
 import { Skeleton } from '@shared/ui/skeleton';
 
@@ -34,6 +35,19 @@ import { Skeleton } from '@shared/ui/skeleton';
           <app-skeleton height="2rem" width="3rem" />
         } @else {
           <span class="stat-card__value">{{ pendingClaims.value() ?? 0 }}</span>
+        }
+      </a>
+
+      <a
+        routerLink="/admin/degerlendirmeler"
+        [queryParams]="{ durum: 'pending' }"
+        class="card stat-card"
+      >
+        <span class="stat-card__label">Bekleyen Değerlendirmeler</span>
+        @if (pendingReviews.isLoading()) {
+          <app-skeleton height="2rem" width="3rem" />
+        } @else {
+          <span class="stat-card__value">{{ pendingReviews.value() ?? 0 }}</span>
         }
       </a>
     </div>
@@ -71,6 +85,7 @@ import { Skeleton } from '@shared/ui/skeleton';
 export class AdminDashboardPage {
   private readonly businessRepo = inject(AdminBusinessRepository);
   private readonly claimRepo = inject(AdminClaimRepository);
+  private readonly reviewRepo = inject(AdminReviewRepository);
   private readonly seo = inject(SeoService);
 
   protected readonly pendingBusinesses = rxResource({
@@ -79,6 +94,10 @@ export class AdminDashboardPage {
 
   protected readonly pendingClaims = rxResource({
     stream: () => this.claimRepo.countPending(),
+  });
+
+  protected readonly pendingReviews = rxResource({
+    stream: () => this.reviewRepo.countPending(),
   });
 
   constructor() {

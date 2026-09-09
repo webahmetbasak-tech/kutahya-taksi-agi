@@ -136,6 +136,30 @@ export const routes: Routes = [
             (m) => m.AdminQuickAddPage,
           ),
       },
+      {
+        path: 'hizmetler',
+        loadComponent: () =>
+          import('@features/admin/catalog/admin-services-page').then((m) => m.AdminServicesPage),
+      },
+      {
+        path: 'bolgeler',
+        loadComponent: () =>
+          import('@features/admin/catalog/admin-locations-page').then(
+            (m) => m.AdminLocationsPage,
+          ),
+      },
+      {
+        path: 'degerlendirmeler',
+        loadComponent: () =>
+          import('@features/admin/reviews/admin-reviews-page').then((m) => m.AdminReviewsPage),
+      },
+      {
+        path: 'analitik',
+        loadComponent: () =>
+          import('@features/admin/analytics/admin-analytics-page').then(
+            (m) => m.AdminAnalyticsPage,
+          ),
+      },
     ],
   },
   {

@@ -11,7 +11,8 @@ import { AdminAccessService } from '@core/auth/admin-access.service';
 import { BusinessRepository } from '@core/data/business.repository';
 import { ClaimRepository } from '@core/data/claim.repository';
 import { AnalyticsRepository } from '@core/data/analytics.repository';
-import type { AnalyticsDailyRow, BusinessStatus, ClaimRow, OwnedBusinessRow } from '@core/data/models';
+import type { BusinessStatus, ClaimRow, OwnedBusinessRow } from '@core/data/models';
+import { summarizeDailyStats, type BusinessStats } from '@shared/utils/analytics-stats';
 
 const BUSINESS_STATUS_LABELS: Record<BusinessStatus, string> = {
   pending: 'İnceleniyor',
@@ -43,35 +44,6 @@ const CLAIM_STATUS_BADGE_CLASS: Record<ClaimRow['status'], string> = {
   cancelled: 'badge--danger',
 };
 
-interface BusinessStats {
-  profileViews: number;
-  callClicks: number;
-  whatsappClicks: number;
-  directionsClicks: number;
-}
-
-const EMPTY_STATS: BusinessStats = { profileViews: 0, callClicks: 0, whatsappClicks: 0, directionsClicks: 0 };
-
-function summarize(rows: AnalyticsDailyRow[]): BusinessStats {
-  const stats = { ...EMPTY_STATS };
-  for (const row of rows) {
-    switch (row.event_type) {
-      case 'profile_view':
-        stats.profileViews += row.event_count;
-        break;
-      case 'call_click':
-        stats.callClicks += row.event_count;
-        break;
-      case 'whatsapp_click':
-        stats.whatsappClicks += row.event_count;
-        break;
-      case 'directions_click':
-        stats.directionsClicks += row.event_count;
-        break;
-    }
-  }
-  return stats;
-}
 
 /**
  * İşletme sahibi paneli — `/panel` (§27, Faz 7).
@@ -300,7 +272,7 @@ export class DashboardPage {
     stream: ({ params }) =>
       forkJoin(
         params.map((id) =>
-          this.analyticsRepo.dailyStats(id).pipe(map((rows) => [id, summarize(rows)] as const)),
+          this.analyticsRepo.dailyStats(id).pipe(map((rows) => [id, summarizeDailyStats(rows)] as const)),
         ),
       ).pipe(map((entries) => new Map(entries))),
   });
