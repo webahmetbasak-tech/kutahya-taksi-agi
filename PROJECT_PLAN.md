@@ -667,21 +667,54 @@ bu satırın kendi maddelerine (yukarıda) göre yürütüldü.
 incelemesiyle DEĞİL, gerçek build çıktısı taranarak doğrulandı) · yukarıdaki madde madde
 denetim tamamlandı (resmi "§62" listesi repoda tanımlı değil) · garanti vaat eden metin yok.
 
-### FAZ 12 — Deployment
+### FAZ 12 — Deployment 🔄 KOD TARAFI HAZIR (9 Eylül 2026), hesap/domain adımları bekliyor
 
 Vercel production, Supabase production, domain + DNS + SSL, robots/sitemap doğrulaması,
 Search Console, monitoring, smoke test.
 
-**Domain bağlanınca yapılacak zorunlu ayarlar:**
+Bu fazın büyük kısmı KOD DEĞİL — Vercel hesabı, domain satın alma, DNS, Search Console gibi
+yalnızca kullanıcının kendi hesap erişimiyle yapabileceği adımlar. Kod tarafında yapılabilecek
+her şey doğrulandı (aşağıya bkz.); kalan adımlar kullanıcıyı bekliyor.
+
+**Kod tarafı doğrulaması (9 Eylül 2026):** `api/index.mjs`/`server.ts` bağlantısı (`reqHandler`
+export/import eşleşmesi) koddan doğrulandı. Gerçek Vercel'e deploy YAPILMADAN, PRODUCTION
+ortam değişkenleriyle (`ENVIRONMENT=production`, sahte bir `SITE_URL`, gerçek `SUPABASE_URL`/
+`SUPABASE_ANON_KEY`) yerel bir prod build + prod server koşumu yapıldı ve `curl` ile kanıtlandı:
+- `robots.txt`: `Allow: /` + AI crawler istisnaları + doğru `Sitemap:` satırı ✓
+- Ana sayfa: `noindex` YOK (`content="index, follow"`), `canonical` gerçek domain'i kullanıyor,
+  JSON-LD mevcut ✓
+- `/taksi/deneme-slug`: SSR HTML'de `deneme-slug` metni var (Faz 1'in kendi DoD komutu) ✓
+- `/sitemap.xml`: 29 URL, hepsi gerçek domain'le ✓
+- Bilinmeyen bir yol: gerçek `404` HTTP durumu ✓
+- Prod build başarıyla tamamlandı, `main-*.js`de yine `createClient` yok
+
+Bu, Vercel'in KENDİSİNİ test etmez (yalnızca Vercel gerçekten çağırabiliyorsa) ama kodun
+doğru ortam değişkenleriyle çalışmaya HAZIR olduğunu kanıtlar — deploy sırasında sürpriz
+çıkma ihtimalini düşürür.
+
+**Domain bağlanınca yapılacak zorunlu ayarlar (Vercel ortam değişkenleri):**
 
 1. `SITE_URL` = gerçek domain (boşsa production build **durur**)
 2. `NG_ALLOWED_HOSTS` = `domain.com,www.domain.com` (**eksikse site komple 400 döner**)
 3. `ENVIRONMENT=production` (otomatik `noindex`'i kaldırır)
 4. `SUPABASE_URL` + `SUPABASE_ANON_KEY`
 
+**Kalan adımlar (yalnızca kullanıcı yapabilir):**
+
+1. Vercel hesabında repo'yu bağla, yukarıdaki 4 ortam değişkenini gir.
+2. Domain satın al (henüz alınmadı) → Vercel'e ekle → DNS kayıtlarını registrar'da ayarla →
+   SSL otomatik (Vercel).
+3. İlk deploy sonrası: `curl -s https://<domain>/taksi/<gercek-slug> | grep <gercek-slug>`
+   ile SSR'ı canlıda doğrula (yukarıdaki yerel testin canlı karşılığı).
+4. Google Search Console'a domain'i ekle, `https://<domain>/sitemap.xml`'i gönder.
+5. Production'da gerçek bir "Ara" tıklaması yapıp `analytics_events`te göründüğünü doğrula.
+6. `SUPABASE_SERVICE_ROLE_KEY`'i yerel `.env`'e eklersen (opsiyonel) Faz 7-11'den beri atlanan
+   RLS fixture testleri de çalışır hale gelir (`npm run db:test-rls`).
+
 **DoD:** domain canlı ve HTTPS · `curl` ile SSR kanıtı production'da tekrarlandı ·
 `noindex` kalktı · sitemap Search Console'a gönderildi · production smoke test geçti ·
-gerçek bir telefon tıklaması analytics'te görünüyor.
+gerçek bir telefon tıklaması analytics'te görünüyor. (Yukarıdaki yerel koşum bunların
+KOD tarafını kanıtladı; canlı/hesap tarafı kullanıcının kendi işlemini bekliyor.)
 
 ---
 
