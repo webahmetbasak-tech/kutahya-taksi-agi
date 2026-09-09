@@ -70,9 +70,15 @@ import { AnalyticsService } from '@core/analytics/analytics.service';
         <ul class="chip-row">
           @for (loc of sortedDistricts(); track loc.id) {
             <li>
-              <a class="chip" [class.chip--active]="loc.slug === 'merkez'" [routerLink]="['/bolge', loc.slug]">
+              <button
+                type="button"
+                class="chip"
+                [class.chip--active]="loc.id === effectiveDistrictId()"
+                [attr.aria-pressed]="loc.id === effectiveDistrictId()"
+                (click)="selectDistrict(loc.id)"
+              >
                 {{ loc.name }}
-              </a>
+              </button>
             </li>
           }
         </ul>
@@ -99,12 +105,12 @@ import { AnalyticsService } from '@core/analytics/analytics.service';
     </section>
 
     <section class="container section" aria-labelledby="listing-heading">
-      <h2 id="listing-heading" class="section-title">Kütahya'daki Taksi İşletmeleri</h2>
+      <h2 id="listing-heading" class="section-title">{{ listingHeading() }}</h2>
       <app-business-list
         [businesses]="businesses.value() ?? []"
         [loading]="businesses.isLoading()"
         emptyTitle="Rehber henüz hazırlanıyor"
-        emptyDescription="Kütahya'daki taksi duraklarının bilgilerini doğrulayarak ekliyoruz. Doğrulanmamış hiçbir numara yayınlanmıyor."
+        [emptyDescription]="listingEmptyDescription()"
       >
         <a routerLink="/isletme-ekle" class="btn btn--brand">İşletmemi Yayınla</a>
       </app-business-list>
@@ -204,10 +210,6 @@ export class HomePage {
     });
   }
 
-  protected readonly businesses = rxResource({
-    stream: () => this.businessRepo.list(12),
-  });
-
   protected readonly districts = rxResource({
     stream: () => this.locationRepo.districts(),
   });
@@ -217,6 +219,51 @@ export class HomePage {
     const list = this.districts.value() ?? [];
     return [...list].sort((a, b) => Number(b.slug === 'merkez') - Number(a.slug === 'merkez'));
   });
+
+  /**
+   * Kullanıcı bir çip seçmediyse Merkez'e düşer. `undefined` = "districts henüz
+   * yüklenmedi, bekle" (rxResource bunu `businesses` isteğini ERTELEMEK için
+   * kullanır); `null` = "districts yüklendi ama merkez bulunamadı, TÜMÜNÜ göster"
+   * (referans veri bozulursa bile liste sonsuza dek boş kalmasın diye).
+   */
+  private readonly userSelectedDistrictId = signal<string | undefined>(undefined);
+  private readonly merkezId = computed(() => this.districts.value()?.find((l) => l.slug === 'merkez')?.id);
+  protected readonly effectiveDistrictId = computed<string | null | undefined>(() => {
+    const selected = this.userSelectedDistrictId();
+    if (selected) return selected;
+    if (this.districts.isLoading()) return undefined;
+    return this.merkezId() ?? null;
+  });
+  protected readonly selectedDistrictName = computed(
+    () => this.sortedDistricts().find((l) => l.id === this.effectiveDistrictId())?.name,
+  );
+
+  protected readonly listingHeading = computed(() => {
+    const name = this.selectedDistrictName();
+    return name ? `${name} Taksi İşletmeleri` : "Kütahya'daki Taksi İşletmeleri";
+  });
+
+  protected readonly listingEmptyDescription = computed(() => {
+    const name = this.selectedDistrictName();
+    return name
+      ? `${name} bölgesinde henüz yayınlanmış işletme yok. Doğrulanmamış hiçbir numara yayınlanmıyor.`
+      : "Kütahya'daki taksi duraklarının bilgilerini doğrulayarak ekliyoruz. Doğrulanmamış hiçbir numara yayınlanmıyor.";
+  });
+
+  /**
+   * §21/§22 — "Popüler Taksi Bölgeleri" çipleri artık bu listeyi FİLTRELER
+   * (sayfa değişmeden); önceden yalnızca `/bolge/:slug`e link veriyordu.
+   * O bağımsız sayfa (`/bolge/:slug`, crawlable, `/bolge` index'inden erişilir)
+   * hâlâ var — bu, homepage'in kendi içindeki hızlı önizleme deneyimi.
+   */
+  protected readonly businesses = rxResource({
+    params: () => this.effectiveDistrictId(),
+    stream: ({ params }) => (params ? this.businessRepo.byLocation(params) : this.businessRepo.list(12)),
+  });
+
+  protected selectDistrict(locationId: string): void {
+    this.userSelectedDistrictId.set(locationId);
+  }
 
   protected readonly services = rxResource({
     stream: () => this.serviceRepo.list(),
