@@ -606,14 +606,66 @@ fotoğraf" seçildi (sıralamaya dokunmayan, görsel/içerik odaklı bir ilk öz
 **DoD:** flag çalışıyor (fotoğraf sınırı, canlıda doğrulandı) · hiçbir premium özellik sıralama
 garantisi vaat etmiyor (rozet metni/`title`'ı açık, hiçbir `ORDER BY` plana göre değişmiyor).
 
-### FAZ 11 — Production Hardening
+### FAZ 11 — Production Hardening ✅ TAMAMLANDI (9 Eylül 2026)
 
 RLS denetimi, secret taraması, performans (Core Web Vitals bütçesi), SEO denetimi, a11y,
 mobil QA, 404/301/410 denetimi, hata durumları, analytics doğrulaması, **metin denetimi (R8)**,
 KVKK metinleri.
 
-**DoD:** performans bütçesi tutuyor · bundle'da secret yok · tüm §62 checklist'i geçiyor ·
-garanti vaat eden metin yok.
+Bu faz "§62 checklist'i" diye bir listeye atıf yapıyordu ama bu liste repoda hiçbir yerde
+tanımlı değil (§51/§58 gibi, orijinal spec'in bu repoya dahil edilmeyen bir parçası) — denetim
+bu satırın kendi maddelerine (yukarıda) göre yürütüldü.
+
+**Bulgular ve sonuçlar (madde madde):**
+- **RLS denetimi:** `npm run db:test-rls` CANLI linked projeye karşı 19/19 geçti. Fixture
+  testleri (pending/suspended görünürlük, biçim kısıtları) hâlâ `SUPABASE_SERVICE_ROLE_KEY`
+  eksikliği yüzünden atlanıyor — Faz 7'den beri bilinen, dokümante edilmiş bir boşluk;
+  kullanıcının kendi `.env`'ine anahtarı eklemesi gerekiyor (bu anahtar bu oturuma hiç
+  paylaşılmadı/istenmedi — güvenlik sınırı).
+- **Secret taraması (§66):** `dist/` içinde `sb_secret_`/JWT-şekilli servis anahtarı taraması
+  YAPILDI — bulunan tek eşleşme supabase-js'in kendi format-tespit kodunun literal string'i
+  (`r.startsWith('sb_secret_')`), gerçek bir anahtar DEĞİL. `generate-env.mjs` yapısal olarak
+  `SUPABASE_SERVICE_ROLE_KEY`'i hiç okumuyor (kaynak koddan doğrulandı). Temiz.
+- **Performans:** Prod build'de initial (TÜM sayfalar) `95.04 kB` gzip — bütçe `<120 kB`
+  (ARCHITECTURE.md §13). En ağır public sayfa (taxi-detail, galeri dahil) `+4.25 kB` ekliyor,
+  toplam `~99 kB` — bütçe içinde.
+  Rengi kontrast oranları (`tokens.css`) hesaplandı: kullanılan TÜM metin/zemin çiftleri WCAG
+  AA'yı geçiyor (en düşük `--c-text-subtle` 3.61:1, yalnızca büyük/kalın 404 rakamında
+  kullanılıyor, büyük-metin eşiği 3:1'i geçiyor).
+- **SEO denetimi:** gerçek prod build'e karşı `curl` ile doğrulandı — `/robots.txt`
+  (dev'de `Disallow: /`, prod dalı kod incelemesiyle doğrulandı: `Allow: /` + AI crawler
+  istisnaları + `Sitemap:` satırı), `/sitemap.xml` (gerçek URL listesi üretiyor), ana sayfa
+  SSR HTML'inde `<title>`/`rel="canonical"`/`application/ld+json` hepsi mevcut.
+- **a11y:** global `:focus-visible` (asla kaldırılmıyor), `--tap-min: 48px` (WCAG 2.2 AA'nın
+  24px hedefinin üstünde) tüm `.btn`'lerde, `prefers-reduced-motion` desteği, ikon-only
+  buton/link YOK (hepsi metin etiketiyle birlikte ya da `aria-label` taşıyor — galeri sil
+  butonu örneği), `<html lang="tr">`, skip-link mevcut. **Sınırlama:** bu ortamda Python/
+  Playwright kurulu değildi, bu yüzden gerçek bir tarayıcıda axe-core koşturulamadı — denetim
+  statik kod incelemesiyle yapıldı, canlı bir axe taraması YERİNE GEÇMEZ.
+- **Mobil QA:** `.container` + `--container-pad` düzeni, `repeat(auto-fit/auto-fill, minmax(...))`
+  grid'leri (galeri, foto-grid, admin kartları) sabit genişlik kullanmıyor — yatay taşma riski
+  yapısal olarak yok. Gerçek cihaz/viewport testi (yukarıdaki sınırlama nedeniyle) yapılamadı.
+- **404/301/410 denetimi:** zaten Faz 3-4'te yazılmış, bu fazda TEKRAR ÇALIŞTIRILDI (regresyon
+  yok) — `taxi-detail-page.spec.ts`'teki dedike testler.
+- **Hata durumları:** `GlobalErrorHandler` incelendi — Faz 1'den beri "gerçek bir hata toplama
+  servisi (Sentry vb.) Faz 11'de değerlendirilecek" notu taşıyordu. **Karar: ŞİMDİLİK
+  EKLENMİYOR** — sitede henüz gerçek trafik yok (R1), üçüncü taraf bir servis yeni bir
+  secret/ortam değişkeni ve KVKK yüzeyi (varsayılan IP/stack trace toplama) eklerdi. Gerçek
+  trafik başladığında yeniden değerlendirilmeli.
+- **Analytics doğrulaması:** `isLikelyBot()` (bilinen arama/AI crawler imzaları) ve
+  `AnalyticsService` (PII yok, IP yok, yalnızca `referrer_host`) kod incelemesiyle
+  gizlilik-sayfası iddialarıyla ÇAPRAZ KONTROL edildi — tutarlı.
+- **Metin denetimi (R8):** "garanti"/"ilk sırada"/"en üstte" gibi kalıplar için tüm `src/app`
+  tarandı — yalnızca teknik YORUMLARDA (kod garantisi anlamında) eşleşme var, kullanıcıya
+  dönük METİNDE sıralama vaadi YOK.
+- **KVKK metinleri — GERÇEK BİR BOŞLUK BULUNDU VE DÜZELTİLDİ:** `/gizlilik` sayfası "profilinizin
+  kaldırılmasını talep edebilirsiniz" diyordu ama Faz 9c'de eklenen gerçek mekanizmaya
+  (her işletme profilindeki "Bu profilin kaldırılmasını talep et" bağlantısı) HİÇ İŞARET
+  ETMİYORDU — soyut bir vaat, somut bir yol yoktu. Metin güncellendi.
+
+**DoD:** performans bütçesi tutuyor (95 kB < 120 kB) · bundle'da secret yok (yalnızca kod
+incelemesiyle DEĞİL, gerçek build çıktısı taranarak doğrulandı) · yukarıdaki madde madde
+denetim tamamlandı (resmi "§62" listesi repoda tanımlı değil) · garanti vaat eden metin yok.
 
 ### FAZ 12 — Deployment
 

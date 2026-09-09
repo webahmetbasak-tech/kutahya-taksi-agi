@@ -38,7 +38,10 @@ import { SeoService } from '@core/seo/seo.service';
       <h2 class="section-title">İşletme bilgileri</h2>
       <p>
         Rehberde yer alan işletme bilgilerinin kaynağı kayıt altında tutulur. Profilinizin
-        kaldırılmasını veya bir bilginin düzeltilmesini talep edebilirsiniz.
+        kaldırılmasını talep edebilirsiniz — her işletme profilinde bulunan "Bu profilin
+        kaldırılmasını talep et" bağlantısı bu iş için yeterlidir, hesap açmanız gerekmez. Bir
+        bilginin düzeltilmesi için işletmenizi sahiplenip kendiniz güncelleyebilir ya da aynı
+        bağlantı üzerinden talebinizi iletebilirsiniz.
       </p>
     </div>
   `,
