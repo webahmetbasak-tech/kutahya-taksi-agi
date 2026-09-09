@@ -1,4 +1,4 @@
-import { Component, effect, inject, input, signal } from '@angular/core';
+import { Component, computed, effect, inject, input, signal } from '@angular/core';
 import { rxResource } from '@angular/core/rxjs-interop';
 import { RouterLink } from '@angular/router';
 import { form, FormField, validate } from '@angular/forms/signals';
@@ -215,8 +215,10 @@ const STATUS_LABELS: Record<BusinessStatus, string> = {
       <div class="card">
         <h2 class="section-title">Bölgeler</h2>
         <p class="muted field__hint">
-          Ana sayfadaki "Popüler Taksi Bölgeleri" ve bölge sayfaları işletmeleri BURADAN bulur —
-          hiçbiri işaretlenmezse işletme hiçbir bölge sayfasında görünmez.
+          "İlçe / Mahalle" ana sayfadaki "Popüler Taksi Bölgeleri" filtresini ve bölge
+          sayfalarını besler — hiçbiri işaretlenmezse işletme hiçbir ilçe filtresinde görünmez.
+          "Önemli Noktalar" ise yalnızca o noktanın kendi sayfasında görünürlük ve iç link
+          sağlar (SEO) — anasayfadaki ilçe filtresini ETKİLEMEZ.
         </p>
 
         @if (tagsError(); as err) {
@@ -229,8 +231,28 @@ const STATUS_LABELS: Record<BusinessStatus, string> = {
         @if (locations.isLoading()) {
           <app-skeleton height="6rem" />
         } @else {
+          <h3 class="location-group-title">İlçe / Mahalle</h3>
           <ul class="checkbox-list">
-            @for (loc of locations.value() ?? []; track loc.id) {
+            @for (loc of districtLocations(); track loc.id) {
+              <li>
+                <label>
+                  <input
+                    type="checkbox"
+                    [checked]="selectedLocationIds().has(loc.id)"
+                    (change)="toggleLocation(loc.id)"
+                  />
+                  {{ loc.name }}
+                </label>
+              </li>
+            }
+          </ul>
+
+          <h3 class="location-group-title">
+            Önemli Noktalar
+            <span class="muted">(üniversite, havalimanı, otogar, hastane — SEO amaçlı, filtre değil)</span>
+          </h3>
+          <ul class="checkbox-list">
+            @for (loc of landmarkLocations(); track loc.id) {
               <li>
                 <label>
                   <input
@@ -354,6 +376,16 @@ const STATUS_LABELS: Record<BusinessStatus, string> = {
       align-items: center;
       gap: var(--sp-2);
     }
+
+    .location-group-title {
+      font-size: var(--fs-sm);
+      font-weight: var(--fw-semibold);
+      margin-block-start: var(--sp-4);
+    }
+
+    .location-group-title .muted {
+      font-weight: var(--fw-normal);
+    }
   `,
 })
 export class AdminBusinessDetailPage {
@@ -379,6 +411,22 @@ export class AdminBusinessDetailPage {
 
   protected readonly locations = rxResource({ stream: () => this.locationRepo.all() });
   protected readonly services = rxResource({ stream: () => this.serviceRepo.all() });
+
+  /**
+   * §21/§22 fix — tek düz liste "bölge" (ilçe/mahalle, gerçek filtre) ile
+   * "önemli nokta" (üniversite/havalimanı vb., yalnızca SEO içindir) etiketlerini
+   * ayırt edilemez şekilde karıştırıyordu, kullanıcı için anlamsız görünüyordu.
+   */
+  protected readonly districtLocations = computed(() =>
+    (this.locations.value() ?? []).filter(
+      (l) => l.type === 'district' || l.type === 'neighborhood' || l.type === 'city',
+    ),
+  );
+  protected readonly landmarkLocations = computed(() =>
+    (this.locations.value() ?? []).filter(
+      (l) => l.type !== 'district' && l.type !== 'neighborhood' && l.type !== 'city',
+    ),
+  );
 
   private readonly businessLocationIds = rxResource({
     params: () => this.id(),

@@ -17,7 +17,7 @@ describe('AdminQuickAddPage', () => {
     }
   };
 
-  async function setup() {
+  async function setup(districts: { id: string; name: string }[] = []) {
     await TestBed.configureTestingModule({
       imports: [AdminQuickAddPage],
       providers: [provideHttpClient(), provideHttpClientTesting(), provideRouter([]), provideAppConfig()],
@@ -27,6 +27,8 @@ describe('AdminQuickAddPage', () => {
     const fixture = TestBed.createComponent(AdminQuickAddPage);
     currentFixture = fixture;
     fixture.detectChanges();
+    http.expectOne((r) => r.url.includes('/rest/v1/locations')).flush(districts);
+    await tick();
     return fixture;
   }
 
@@ -99,6 +101,30 @@ describe('AdminQuickAddPage', () => {
     await tick();
 
     expect(el.textContent).toContain('Eklenemedi');
+  });
+
+  it('İlçe artık serbest metin değil, seçilebilir listeden gelir', async () => {
+    const fixture = await setup([
+      { id: 'loc-1', name: 'Merkez' },
+      { id: 'loc-2', name: 'Emet' },
+    ]);
+    const el = fixture.nativeElement as HTMLElement;
+    const districtSelect = el.querySelector('#qa-district') as HTMLSelectElement;
+    expect(districtSelect.tagName).toBe('SELECT');
+
+    const nameInput = el.querySelector('#qa-name') as HTMLInputElement;
+    nameInput.value = 'Hızlı Taksi';
+    nameInput.dispatchEvent(new Event('input'));
+    districtSelect.value = 'Emet';
+    districtSelect.dispatchEvent(new Event('input'));
+    fixture.detectChanges();
+
+    el.querySelector('form')?.dispatchEvent(new Event('submit', { cancelable: true }));
+
+    const req = http.expectOne((r) => r.url.includes('/rpc/admin_quick_add_business'));
+    expect(req.request.body).toEqual({ p_business_name: 'Hızlı Taksi', p_district: 'Emet' });
+    req.flush([{ id: 'biz-1', slug: 'hizli-taksi' }]);
+    await tick();
   });
 
   it('"Yeni Ekle" tıklanınca forma geri döner', async () => {

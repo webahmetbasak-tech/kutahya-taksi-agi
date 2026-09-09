@@ -195,8 +195,8 @@ describe('AdminBusinessDetailPage', () => {
     http.expectOne((r) => r.url.includes('/rest/v1/businesses')).flush([BUSINESS_ROW]);
     flushTagRequests({
       locations: [
-        { id: 'loc-1', slug: 'merkez', name: 'Merkez' },
-        { id: 'loc-2', slug: 'tavsanli', name: 'Tavşanlı' },
+        { id: 'loc-1', slug: 'merkez', name: 'Merkez', type: 'district' },
+        { id: 'loc-2', slug: 'tavsanli', name: 'Tavşanlı', type: 'district' },
       ],
       services: [{ id: 'svc-1', slug: '724-taksi', name: '7/24 Taksi' }],
       businessLocations: [{ location_id: 'loc-1' }],
@@ -238,6 +238,25 @@ describe('AdminBusinessDetailPage', () => {
     await tick();
 
     expect(el.textContent).toContain('Kaydedildi.');
+  });
+
+  it('İlçe/Mahalle ve Önemli Noktalar ayrı listelerde gösterilir (§21/§22 karmaşıklık düzeltmesi)', async () => {
+    const fixture = await setup();
+    http.expectOne((r) => r.url.includes('/rest/v1/businesses')).flush([BUSINESS_ROW]);
+    flushTagRequests({
+      locations: [
+        { id: 'loc-1', slug: 'merkez', name: 'Merkez', type: 'district' },
+        { id: 'loc-2', slug: 'dpu', name: 'Dumlupınar Üniversitesi', type: 'university' },
+      ],
+    });
+    await tick();
+
+    const el = fixture.nativeElement as HTMLElement;
+    const lists = el.querySelectorAll('.checkbox-list');
+    expect((lists[0] as HTMLElement).textContent).toContain('Merkez');
+    expect((lists[0] as HTMLElement).textContent).not.toContain('Dumlupınar');
+    expect((lists[1] as HTMLElement).textContent).toContain('Dumlupınar Üniversitesi');
+    expect((lists[1] as HTMLElement).textContent).not.toContain('Merkez');
   });
 
   it('enlem yalnızca girilip boylam boş bırakılırsa kaydetmez, hata gösterir', async () => {

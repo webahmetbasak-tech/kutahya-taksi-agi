@@ -55,9 +55,11 @@ describe('BusinessSubmitPage', () => {
     return fixture;
   }
 
-  async function setup(auth: ReturnType<typeof mockAuth>) {
+  async function setup(auth: ReturnType<typeof mockAuth>, districts: { id: string; name: string }[] = []) {
     const fixture = await configure(auth);
     fixture.detectChanges();
+    http.expectOne((r) => r.url.includes('/rest/v1/locations')).flush(districts);
+    await tick();
     return fixture;
   }
 
@@ -70,6 +72,7 @@ describe('BusinessSubmitPage', () => {
     const navigateSpy = vi.spyOn(router, 'navigate').mockResolvedValue(true);
 
     fixture.detectChanges();
+    http.expectOne((r) => r.url.includes('/rest/v1/locations')).flush([]);
     await fixture.whenStable();
 
     expect(navigateSpy).toHaveBeenCalledWith(['/giris'], { queryParams: { redirect: '/isletme-ekle' } });
@@ -133,6 +136,31 @@ describe('BusinessSubmitPage', () => {
     expect(el.textContent).toContain('Başvurunuz Alındı');
     expect(el.textContent).not.toContain('Benzer bir işletme');
     expect(trackSpy).toHaveBeenCalledWith({ eventType: 'listing_submitted', businessId: 'biz-1' });
+  });
+
+  it('İlçe artık serbest metin değil, seçilebilir listeden gelir', async () => {
+    const fixture = await setup(mockAuth(), [
+      { id: 'loc-1', name: 'Merkez' },
+      { id: 'loc-2', name: 'Emet' },
+    ]);
+    const el = fixture.nativeElement as HTMLElement;
+
+    const districtSelect = el.querySelector('#biz-district') as HTMLSelectElement;
+    expect(districtSelect.tagName).toBe('SELECT');
+
+    const nameInput = el.querySelector('#biz-name') as HTMLInputElement;
+    nameInput.value = 'Zümrüt Taksi';
+    nameInput.dispatchEvent(new Event('input'));
+    districtSelect.value = 'Emet';
+    districtSelect.dispatchEvent(new Event('input'));
+    fixture.detectChanges();
+
+    el.querySelector('form')?.dispatchEvent(new Event('submit', { cancelable: true }));
+
+    const req = http.expectOne((r) => r.url.includes('/rpc/submit_business'));
+    expect(req.request.body).toEqual({ p_business_name: 'Zümrüt Taksi', p_district: 'Emet' });
+    req.flush([{ id: 'biz-1', slug: 'zumrut-taksi', possible_duplicate: false }]);
+    await tick();
   });
 
   it('olası kopya işaretlenmişse uyarı gösterir', async () => {

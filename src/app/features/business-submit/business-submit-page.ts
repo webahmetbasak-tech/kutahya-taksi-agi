@@ -1,8 +1,10 @@
 import { Component, effect, inject, signal } from '@angular/core';
+import { rxResource } from '@angular/core/rxjs-interop';
 import { Router, RouterLink } from '@angular/router';
 import { form, FormField, validate } from '@angular/forms/signals';
 import { BusinessSubmitRepository } from '@core/data/business-submit.repository';
 import { BusinessMediaRepository } from '@core/data/business-media.repository';
+import { LocationRepository } from '@core/data/location.repository';
 import { BusinessMediaService } from '@core/storage/business-media.service';
 import { AuthService } from '@core/auth/auth.service';
 import { AnalyticsService } from '@core/analytics/analytics.service';
@@ -156,7 +158,12 @@ import { Skeleton } from '@shared/ui/skeleton';
 
           <div class="field">
             <label class="field__label" for="biz-district">İlçe</label>
-            <input id="biz-district" class="field__input" type="text" [formField]="submitForm.district" />
+            <select id="biz-district" class="field__input" [formField]="submitForm.district">
+              <option value="">İlçe seçin</option>
+              @for (d of districts.value() ?? []; track d.id) {
+                <option [value]="d.name">{{ d.name }}</option>
+              }
+            </select>
           </div>
 
           <div class="field">
@@ -241,7 +248,11 @@ import { Skeleton } from '@shared/ui/skeleton';
 export class BusinessSubmitPage {
   private readonly submitRepo = inject(BusinessSubmitRepository);
   private readonly mediaRepo = inject(BusinessMediaRepository);
+  private readonly locationRepo = inject(LocationRepository);
   private readonly mediaService = inject(BusinessMediaService);
+
+  /** İlçe artık elle yazılmıyor — yazım hatası/geçersiz değer riskini kaldırır. */
+  protected readonly districts = rxResource({ stream: () => this.locationRepo.districts() });
   protected readonly auth = inject(AuthService);
   private readonly analytics = inject(AnalyticsService);
   private readonly router = inject(Router);

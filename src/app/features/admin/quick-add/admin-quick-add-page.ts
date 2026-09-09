@@ -1,7 +1,9 @@
 import { Component, inject, signal } from '@angular/core';
+import { rxResource } from '@angular/core/rxjs-interop';
 import { RouterLink } from '@angular/router';
 import { form, FormField, validate } from '@angular/forms/signals';
 import { AdminBusinessRepository } from '@core/data/admin-business.repository';
+import { LocationRepository } from '@core/data/location.repository';
 import { SeoService } from '@core/seo/seo.service';
 import { normalizeTrPhone } from '@shared/utils/phone';
 
@@ -70,7 +72,12 @@ import { normalizeTrPhone } from '@shared/utils/phone';
 
         <div class="field">
           <label class="field__label" for="qa-district">İlçe</label>
-          <input id="qa-district" class="field__input" type="text" [formField]="quickForm.district" />
+          <select id="qa-district" class="field__input" [formField]="quickForm.district">
+            <option value="">İlçe seçin</option>
+            @for (d of districts.value() ?? []; track d.id) {
+              <option [value]="d.name">{{ d.name }}</option>
+            }
+          </select>
         </div>
 
         <div class="field">
@@ -127,7 +134,11 @@ import { normalizeTrPhone } from '@shared/utils/phone';
 })
 export class AdminQuickAddPage {
   private readonly repo = inject(AdminBusinessRepository);
+  private readonly locationRepo = inject(LocationRepository);
   private readonly seo = inject(SeoService);
+
+  /** İlçe artık elle yazılmıyor — yazım hatası/geçersiz değer riskini kaldırır. */
+  protected readonly districts = rxResource({ stream: () => this.locationRepo.districts() });
 
   protected readonly submitting = signal(false);
   protected readonly errorMessage = signal<string | null>(null);
