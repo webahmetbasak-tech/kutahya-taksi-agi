@@ -268,6 +268,7 @@ export type Database = {
           created_at: string;
           description: string | null;
           district: string | null;
+          driver_name: string | null;
           geo: unknown;
           google_maps_url: string | null;
           id: string;
@@ -300,6 +301,7 @@ export type Database = {
           created_at?: string;
           description?: string | null;
           district?: string | null;
+          driver_name?: string | null;
           geo?: unknown;
           google_maps_url?: string | null;
           id?: string;
@@ -332,6 +334,7 @@ export type Database = {
           created_at?: string;
           description?: string | null;
           district?: string | null;
+          driver_name?: string | null;
           geo?: unknown;
           google_maps_url?: string | null;
           id?: string;
@@ -871,23 +874,42 @@ export type Database = {
       };
       rollup_analytics_daily: { Args: { target_day?: string }; Returns: number };
       slugify: { Args: { value: string }; Returns: string };
-      submit_business: {
-        Args: {
-          p_address?: string;
-          p_business_name: string;
-          p_description?: string;
-          p_district?: string;
-          p_neighborhood?: string;
-          p_phone?: string;
-          p_website?: string;
-          p_whatsapp?: string;
-        };
-        Returns: {
-          id: string;
-          possible_duplicate: boolean;
-          slug: string;
-        }[];
-      };
+      submit_business:
+        | {
+            Args: {
+              p_address?: string;
+              p_business_name: string;
+              p_description?: string;
+              p_district?: string;
+              p_neighborhood?: string;
+              p_phone?: string;
+              p_website?: string;
+              p_whatsapp?: string;
+            };
+            Returns: {
+              id: string;
+              possible_duplicate: boolean;
+              slug: string;
+            }[];
+          }
+        | {
+            Args: {
+              p_address?: string;
+              p_business_name: string;
+              p_description?: string;
+              p_district?: string;
+              p_driver_name?: string;
+              p_neighborhood?: string;
+              p_phone?: string;
+              p_website?: string;
+              p_whatsapp?: string;
+            };
+            Returns: {
+              id: string;
+              possible_duplicate: boolean;
+              slug: string;
+            }[];
+          };
       unique_business_slug: { Args: { base_name: string }; Returns: string };
     };
     Enums: {

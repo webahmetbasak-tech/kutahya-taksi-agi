@@ -78,12 +78,16 @@ describe('BusinessSubmitPage', () => {
     expect(navigateSpy).toHaveBeenCalledWith(['/giris'], { queryParams: { redirect: '/isletme-ekle' } });
   });
 
-  it('oturum açıksa formu gösterir', async () => {
+  it('oturum açıksa formu gösterir; İl her zaman Kütahya olarak sabit gösterilir', async () => {
     const fixture = await setup(mockAuth());
     const el = fixture.nativeElement as HTMLElement;
 
     expect(el.querySelector('#biz-name')).not.toBeNull();
     expect(el.querySelector('#biz-phone')).not.toBeNull();
+    expect(el.querySelector('#biz-driver-name')).not.toBeNull();
+    expect(el.textContent).toContain('Kütahya');
+    expect(el.querySelector('#biz-whatsapp')).toBeNull();
+    expect(el.querySelector('#biz-neighborhood')).toBeNull();
   });
 
   it('işletme adı boşken göndermeye çalışırsa istek atılmadan hata gösterir', async () => {
@@ -136,6 +140,26 @@ describe('BusinessSubmitPage', () => {
     expect(el.textContent).toContain('Başvurunuz Alındı');
     expect(el.textContent).not.toContain('Benzer bir işletme');
     expect(trackSpy).toHaveBeenCalledWith({ eventType: 'listing_submitted', businessId: 'biz-1' });
+  });
+
+  it('Şoför Ad Soyad girilirse p_driver_name olarak gönderilir', async () => {
+    const fixture = await setup(mockAuth());
+    const el = fixture.nativeElement as HTMLElement;
+
+    const nameInput = el.querySelector('#biz-name') as HTMLInputElement;
+    nameInput.value = 'Zümrüt Taksi';
+    nameInput.dispatchEvent(new Event('input'));
+    const driverInput = el.querySelector('#biz-driver-name') as HTMLInputElement;
+    driverInput.value = 'Ahmet Yılmaz';
+    driverInput.dispatchEvent(new Event('input'));
+    fixture.detectChanges();
+
+    el.querySelector('form')?.dispatchEvent(new Event('submit', { cancelable: true }));
+
+    const req = http.expectOne((r) => r.url.includes('/rpc/submit_business'));
+    expect(req.request.body).toEqual({ p_business_name: 'Zümrüt Taksi', p_driver_name: 'Ahmet Yılmaz' });
+    req.flush([{ id: 'biz-1', slug: 'zumrut-taksi', possible_duplicate: false }]);
+    await tick();
   });
 
   it('İlçe artık serbest metin değil, seçilebilir listeden gelir', async () => {

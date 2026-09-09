@@ -170,6 +170,9 @@ describe('AdminBusinessDetailPage', () => {
     planSelect.value = 'pro';
     planSelect.dispatchEvent(new Event('input'));
     planSelect.dispatchEvent(new Event('change'));
+    const driverInput = el.querySelector('#edit-driver-name') as HTMLInputElement;
+    driverInput.value = 'Mehmet Şoför';
+    driverInput.dispatchEvent(new Event('input'));
     fixture.detectChanges();
 
     el.querySelector('form')?.dispatchEvent(new Event('submit', { cancelable: true }));
@@ -180,6 +183,7 @@ describe('AdminBusinessDetailPage', () => {
       phone_e164: '+905551112233',
       plan: 'pro',
       verification_status: 'unverified',
+      driver_name: 'Mehmet Şoför',
     });
     req.flush(null);
     await tick();

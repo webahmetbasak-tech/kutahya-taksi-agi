@@ -137,23 +137,13 @@ import { Skeleton } from '@shared/ui/skeleton';
           </div>
 
           <div class="field">
-            <label class="field__label" for="biz-whatsapp">WhatsApp (isteğe bağlı)</label>
-            <input
-              id="biz-whatsapp"
-              class="field__input"
-              type="tel"
-              autocomplete="tel"
-              placeholder="0555 111 22 33"
-              [formField]="submitForm.whatsapp"
-            />
-            @if (submitForm.whatsapp().touched() && submitForm.whatsapp().errors()[0]; as err) {
-              <p class="field__error">{{ err.message }}</p>
-            }
+            <label class="field__label" for="biz-driver-name">Şoför Ad Soyad</label>
+            <input id="biz-driver-name" class="field__input" type="text" [formField]="submitForm.driverName" />
           </div>
 
           <div class="field">
-            <label class="field__label" for="biz-address">Adres</label>
-            <input id="biz-address" class="field__input" type="text" [formField]="submitForm.address" />
+            <span class="field__label">İl</span>
+            <p class="field__static">Kütahya</p>
           </div>
 
           <div class="field">
@@ -167,13 +157,8 @@ import { Skeleton } from '@shared/ui/skeleton';
           </div>
 
           <div class="field">
-            <label class="field__label" for="biz-neighborhood">Mahalle</label>
-            <input
-              id="biz-neighborhood"
-              class="field__input"
-              type="text"
-              [formField]="submitForm.neighborhood"
-            />
+            <label class="field__label" for="biz-address">Durak Adresi</label>
+            <input id="biz-address" class="field__input" type="text" [formField]="submitForm.address" />
           </div>
 
           <div class="field">
@@ -221,6 +206,12 @@ import { Skeleton } from '@shared/ui/skeleton';
     textarea.field__input {
       resize: vertical;
       font-family: inherit;
+    }
+
+    .field__static {
+      margin: 0;
+      padding-block: var(--sp-2);
+      color: var(--c-text-muted);
     }
 
     .photos {
@@ -274,10 +265,9 @@ export class BusinessSubmitPage {
   private readonly submitModel = signal({
     businessName: '',
     phone: '',
-    whatsapp: '',
+    driverName: '',
     address: '',
     district: '',
-    neighborhood: '',
     website: '',
     description: '',
   });
@@ -287,13 +277,6 @@ export class BusinessSubmitPage {
       ctx.value().trim() ? undefined : { kind: 'required', message: 'İşletme adı gerekli.' },
     );
     validate(path.phone, (ctx) => {
-      const value = ctx.value().trim();
-      if (!value) return undefined;
-      return normalizeTrPhone(value)
-        ? undefined
-        : { kind: 'phone_format', message: 'Geçerli bir telefon numarası girin (ör. 0555 111 22 33).' };
-    });
-    validate(path.whatsapp, (ctx) => {
       const value = ctx.value().trim();
       if (!value) return undefined;
       return normalizeTrPhone(value)
@@ -330,10 +313,9 @@ export class BusinessSubmitPage {
     const model = this.submitModel();
     const businessName = model.businessName.trim();
     const phone = model.phone.trim();
-    const whatsapp = model.whatsapp.trim();
+    const driverName = model.driverName.trim();
     const address = model.address.trim();
     const district = model.district.trim();
-    const neighborhood = model.neighborhood.trim();
     const website = model.website.trim();
     const description = model.description.trim();
 
@@ -344,10 +326,9 @@ export class BusinessSubmitPage {
       .submit({
         p_business_name: businessName,
         ...(phone && { p_phone: normalizeTrPhone(phone) ?? phone }),
-        ...(whatsapp && { p_whatsapp: normalizeTrPhone(whatsapp) ?? whatsapp }),
+        ...(driverName && { p_driver_name: driverName }),
         ...(address && { p_address: address }),
         ...(district && { p_district: district }),
-        ...(neighborhood && { p_neighborhood: neighborhood }),
         ...(website && { p_website: website }),
         ...(description && { p_description: description }),
       })

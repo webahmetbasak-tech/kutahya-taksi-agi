@@ -148,6 +148,16 @@ const STATUS_LABELS: Record<BusinessStatus, string> = {
           />
         </div>
 
+        <div class="field">
+          <label class="field__label" for="edit-driver-name">Şoför Ad Soyad</label>
+          <input
+            id="edit-driver-name"
+            class="field__input"
+            type="text"
+            [formField]="editForm.driverName"
+          />
+        </div>
+
         <div class="field-row">
           <div class="field">
             <label class="field__label" for="edit-lat">Enlem (latitude)</label>
@@ -450,6 +460,7 @@ export class AdminBusinessDetailPage {
     address: '',
     district: '',
     neighborhood: '',
+    driverName: '',
     website: '',
     description: '',
     verified: 'false',
@@ -501,6 +512,7 @@ export class AdminBusinessDetailPage {
           address: b.address ?? '',
           district: b.district ?? '',
           neighborhood: b.neighborhood ?? '',
+          driverName: b.driver_name ?? '',
           website: b.website ?? '',
           description: b.description ?? '',
           verified: b.verification_status === 'verified' ? 'true' : 'false',
@@ -578,6 +590,7 @@ export class AdminBusinessDetailPage {
       address: model.address.trim() || null,
       district: model.district.trim() || null,
       neighborhood: model.neighborhood.trim() || null,
+      driver_name: model.driverName.trim() || null,
       latitude: lat ? Number(lat) : null,
       longitude: lon ? Number(lon) : null,
       website: model.website.trim() || null,
