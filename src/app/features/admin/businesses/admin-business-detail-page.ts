@@ -3,6 +3,8 @@ import { rxResource } from '@angular/core/rxjs-interop';
 import { RouterLink } from '@angular/router';
 import { form, FormField, validate } from '@angular/forms/signals';
 import { AdminBusinessRepository } from '@core/data/admin-business.repository';
+import { AdminLocationRepository } from '@core/data/admin-location.repository';
+import { AdminServiceRepository } from '@core/data/admin-service.repository';
 import type { AdminBusinessRow, BusinessPlan, BusinessStatus } from '@core/data/models';
 import { SeoService } from '@core/seo/seo.service';
 import { normalizeTrPhone } from '@shared/utils/phone';
@@ -146,6 +148,35 @@ const STATUS_LABELS: Record<BusinessStatus, string> = {
           />
         </div>
 
+        <div class="field-row">
+          <div class="field">
+            <label class="field__label" for="edit-lat">Enlem (latitude)</label>
+            <input
+              id="edit-lat"
+              class="field__input"
+              type="number"
+              step="any"
+              [value]="latitude()"
+              (input)="latitude.set($any($event.target).value)"
+            />
+          </div>
+          <div class="field">
+            <label class="field__label" for="edit-lon">Boylam (longitude)</label>
+            <input
+              id="edit-lon"
+              class="field__input"
+              type="number"
+              step="any"
+              [value]="longitude()"
+              (input)="longitude.set($any($event.target).value)"
+            />
+          </div>
+        </div>
+        <p class="muted field__hint">
+          "Yakınımdaki Taksiler" bu ikisi doluysa çalışır. Google Maps'te işletmeye sağ tıklayıp
+          koordinatları kopyalayabilirsiniz.
+        </p>
+
         <div class="field">
           <label class="field__label" for="edit-website">Web sitesi</label>
           <input id="edit-website" class="field__input" type="text" [formField]="editForm.website" />
@@ -180,6 +211,74 @@ const STATUS_LABELS: Record<BusinessStatus, string> = {
           {{ saving() ? 'Kaydediliyor…' : 'Kaydet' }}
         </button>
       </form>
+
+      <div class="card">
+        <h2 class="section-title">Bölgeler</h2>
+        <p class="muted field__hint">
+          Ana sayfadaki "Popüler Taksi Bölgeleri" ve bölge sayfaları işletmeleri BURADAN bulur —
+          hiçbiri işaretlenmezse işletme hiçbir bölge sayfasında görünmez.
+        </p>
+
+        @if (tagsError(); as err) {
+          <p class="form-banner form-banner--error" role="alert">{{ err }}</p>
+        }
+        @if (tagsSaved()) {
+          <p class="form-banner form-banner--success" role="status">Kaydedildi.</p>
+        }
+
+        @if (locations.isLoading()) {
+          <app-skeleton height="6rem" />
+        } @else {
+          <ul class="checkbox-list">
+            @for (loc of locations.value() ?? []; track loc.id) {
+              <li>
+                <label>
+                  <input
+                    type="checkbox"
+                    [checked]="selectedLocationIds().has(loc.id)"
+                    (change)="toggleLocation(loc.id)"
+                  />
+                  {{ loc.name }}
+                </label>
+              </li>
+            }
+          </ul>
+        }
+
+        <button type="button" class="btn btn--brand" [disabled]="savingTags()" (click)="saveLocations(b.id)">
+          {{ savingTags() ? 'Kaydediliyor…' : 'Bölgeleri Kaydet' }}
+        </button>
+      </div>
+
+      <div class="card">
+        <h2 class="section-title">Hizmetler</h2>
+        <p class="muted field__hint">
+          Ana sayfadaki "Hizmetler" bölümü ve hizmet sayfaları işletmeleri BURADAN bulur.
+        </p>
+
+        @if (services.isLoading()) {
+          <app-skeleton height="6rem" />
+        } @else {
+          <ul class="checkbox-list">
+            @for (s of services.value() ?? []; track s.id) {
+              <li>
+                <label>
+                  <input
+                    type="checkbox"
+                    [checked]="selectedServiceIds().has(s.id)"
+                    (change)="toggleService(s.id)"
+                  />
+                  {{ s.name }}
+                </label>
+              </li>
+            }
+          </ul>
+        }
+
+        <button type="button" class="btn btn--brand" [disabled]="savingTags()" (click)="saveServices(b.id)">
+          {{ savingTags() ? 'Kaydediliyor…' : 'Hizmetleri Kaydet' }}
+        </button>
+      </div>
     } @else {
       <p class="lead">İşletme bulunamadı.</p>
     }
@@ -231,10 +330,36 @@ const STATUS_LABELS: Record<BusinessStatus, string> = {
       margin-block-start: var(--sp-1);
       font-size: var(--fs-xs);
     }
+
+    .field-row {
+      display: flex;
+      gap: var(--sp-3);
+    }
+
+    .field-row .field {
+      flex: 1;
+    }
+
+    .checkbox-list {
+      display: flex;
+      flex-wrap: wrap;
+      gap: var(--sp-2) var(--sp-4);
+      list-style: none;
+      padding: 0;
+      margin-block: var(--sp-3);
+    }
+
+    .checkbox-list label {
+      display: flex;
+      align-items: center;
+      gap: var(--sp-2);
+    }
   `,
 })
 export class AdminBusinessDetailPage {
   private readonly repo = inject(AdminBusinessRepository);
+  private readonly locationRepo = inject(AdminLocationRepository);
+  private readonly serviceRepo = inject(AdminServiceRepository);
   private readonly seo = inject(SeoService);
 
   readonly id = input.required<string>();
@@ -244,10 +369,31 @@ export class AdminBusinessDetailPage {
   protected readonly saving = signal(false);
   protected readonly saved = signal(false);
 
+  protected readonly latitude = signal('');
+  protected readonly longitude = signal('');
+
   protected readonly business = rxResource({
     params: () => this.id(),
     stream: ({ params }) => this.repo.byId(params),
   });
+
+  protected readonly locations = rxResource({ stream: () => this.locationRepo.all() });
+  protected readonly services = rxResource({ stream: () => this.serviceRepo.all() });
+
+  private readonly businessLocationIds = rxResource({
+    params: () => this.id(),
+    stream: ({ params }) => this.repo.locationIdsFor(params),
+  });
+  private readonly businessServiceIds = rxResource({
+    params: () => this.id(),
+    stream: ({ params }) => this.repo.serviceIdsFor(params),
+  });
+
+  protected readonly selectedLocationIds = signal<Set<string>>(new Set());
+  protected readonly selectedServiceIds = signal<Set<string>>(new Set());
+  protected readonly tagsError = signal<string | null>(null);
+  protected readonly tagsSaved = signal(false);
+  protected readonly savingTags = signal(false);
 
   private readonly editModel = signal({
     businessName: '',
@@ -283,6 +429,7 @@ export class AdminBusinessDetailPage {
   });
 
   private hasLoadedForm = false;
+  private hasLoadedTags = false;
 
   constructor() {
     this.seo.setPage({
@@ -311,6 +458,20 @@ export class AdminBusinessDetailPage {
           verified: b.verification_status === 'verified' ? 'true' : 'false',
           plan: b.plan,
         });
+        this.latitude.set(b.latitude?.toString() ?? '');
+        this.longitude.set(b.longitude?.toString() ?? '');
+      }
+    });
+
+    // Aynı desen: bölge/hizmet etiketleri de BİR KEZ yüklenir, sonra kullanıcının
+    // henüz kaydetmediği checkbox seçimlerinin üzerine yazılmaz.
+    effect(() => {
+      const locIds = this.businessLocationIds.value();
+      const svcIds = this.businessServiceIds.value();
+      if (locIds && svcIds && !this.hasLoadedTags) {
+        this.hasLoadedTags = true;
+        this.selectedLocationIds.set(new Set(locIds));
+        this.selectedServiceIds.set(new Set(svcIds));
       }
     });
   }
@@ -349,9 +510,17 @@ export class AdminBusinessDetailPage {
     const model = this.editModel();
     const phone = model.phone.trim();
     const whatsapp = model.whatsapp.trim();
+    const lat = this.latitude().trim();
+    const lon = this.longitude().trim();
 
     this.saveError.set(null);
     this.saved.set(false);
+
+    if (Boolean(lat) !== Boolean(lon)) {
+      this.saveError.set('Enlem ve boylam birlikte girilmeli ya da ikisi de boş bırakılmalı.');
+      return;
+    }
+
     this.saving.set(true);
 
     const patch: Partial<AdminBusinessRow> = {
@@ -361,6 +530,8 @@ export class AdminBusinessDetailPage {
       address: model.address.trim() || null,
       district: model.district.trim() || null,
       neighborhood: model.neighborhood.trim() || null,
+      latitude: lat ? Number(lat) : null,
+      longitude: lon ? Number(lon) : null,
       website: model.website.trim() || null,
       description: model.description.trim() || null,
       verification_status: model.verified === 'true' ? 'verified' : 'unverified',
@@ -376,6 +547,56 @@ export class AdminBusinessDetailPage {
       error: () => {
         this.saving.set(false);
         this.saveError.set('Kaydedilemedi. Lütfen tekrar deneyin.');
+      },
+    });
+  }
+
+  protected toggleLocation(id: string): void {
+    this.selectedLocationIds.update((set) => {
+      const next = new Set(set);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  }
+
+  protected toggleService(id: string): void {
+    this.selectedServiceIds.update((set) => {
+      const next = new Set(set);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  }
+
+  protected saveLocations(businessId: string): void {
+    this.tagsError.set(null);
+    this.tagsSaved.set(false);
+    this.savingTags.set(true);
+    this.repo.setLocations(businessId, [...this.selectedLocationIds()]).subscribe({
+      next: () => {
+        this.savingTags.set(false);
+        this.tagsSaved.set(true);
+      },
+      error: () => {
+        this.savingTags.set(false);
+        this.tagsError.set('Bölgeler kaydedilemedi. Lütfen tekrar deneyin.');
+      },
+    });
+  }
+
+  protected saveServices(businessId: string): void {
+    this.tagsError.set(null);
+    this.tagsSaved.set(false);
+    this.savingTags.set(true);
+    this.repo.setServices(businessId, [...this.selectedServiceIds()]).subscribe({
+      next: () => {
+        this.savingTags.set(false);
+        this.tagsSaved.set(true);
+      },
+      error: () => {
+        this.savingTags.set(false);
+        this.tagsError.set('Hizmetler kaydedilemedi. Lütfen tekrar deneyin.');
       },
     });
   }

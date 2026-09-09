@@ -147,12 +147,14 @@ sistemde hiç admin yokken, bir kullanıcı YALNIZCA KENDİ satırını admin ya
 var olduğu an bu yol kalıcı olarak kapanır.
 
 1. Normal şekilde `/giris`den bir hesap oluştur (e-posta onayını tamamla).
-2. Tarayıcı konsolunda oturumdaki JWT'yi al (`localStorage`da `sb-<project-ref>-auth-token`
-   anahtarı altında, `access_token` alanı) — ya da Supabase Studio → Authentication'dan
-   kullanıcı ID'ni bul ve Table Editor'de `profiles` tablosunda o satırın `role`'ünü elle
-   `admin` yap (en basit yol budur, aşağıdaki `curl` yalnızca API üzerinden yapmak isteyenler
-   içindir).
-3. API ile yapmak istersen:
+2. **En basit yol — Supabase Studio → Table Editor**: `profiles` tablosunda kendi
+   satırını bul (Authentication sekmesinden kullanıcı ID'ni doğrulayabilirsin), `role`
+   sütununu elle `admin` yap ve kaydet. Studio'nun SQL Editor'ü ve Table Editor'ü
+   veritabanına `postgres` superuser rolüyle bağlanır (senin oturumunla değil) — bu yüzden
+   bootstrap istisnası bu bağlamı da (`session_user = 'postgres'`) ayrıca tanır. Yalnızca
+   projenin sahibi Studio'ya girebildiği için bu güvenli bir bootstrap yoludur.
+3. Alternatif — API üzerinden kendi JWT'inle yapmak istersen (`localStorage`da
+   `sb-<project-ref>-auth-token` anahtarı altında `access_token` alanı):
    ```bash
    curl -X PATCH "https://ierfpvxzknfoyubpnzws.supabase.co/rest/v1/profiles?id=eq.<senin-user-id>" \
      -H "apikey: <SUPABASE_ANON_KEY>" \

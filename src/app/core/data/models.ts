@@ -220,6 +220,8 @@ export type AdminBusinessRow = Pick<
   | 'neighborhood'
   | 'city'
   | 'address'
+  | 'latitude'
+  | 'longitude'
   | 'website'
   | 'description'
   | 'owner_id'

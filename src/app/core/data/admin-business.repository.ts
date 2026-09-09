@@ -1,5 +1,5 @@
 import { inject, Injectable } from '@angular/core';
-import { map, type Observable } from 'rxjs';
+import { map, switchMap, of, type Observable } from 'rxjs';
 import { PostgrestClient } from './postgrest.client';
 import type { AdminBusinessRow, AdminQuickAddInput, AdminQuickAddResult, BusinessStatus } from './models';
 
@@ -89,6 +89,57 @@ export class AdminBusinessRepository {
         }
         return row;
       }),
+    );
+  }
+
+  /**
+   * §10/§12 — `submit_business`/`admin_quick_add_business` bir işletmeyi
+   * asla `business_locations`/`business_services`e etiketlemez (bölge/hizmet
+   * ilk kayıtta bilinmez, admin sonradan atar). Bu yüzden admin detay
+   * ekranı bu iki bağ tablosunu ayrıca okuyup yazar.
+   */
+  locationIdsFor(businessId: string): Observable<string[]> {
+    return this.client
+      .list<{ location_id: string }>('business_locations', {
+        select: 'location_id',
+        business_id: `eq.${businessId}`,
+      })
+      .pipe(map((rows) => rows.map((r) => r.location_id)));
+  }
+
+  serviceIdsFor(businessId: string): Observable<string[]> {
+    return this.client
+      .list<{ service_id: string }>('business_services', {
+        select: 'service_id',
+        business_id: `eq.${businessId}`,
+      })
+      .pipe(map((rows) => rows.map((r) => r.service_id)));
+  }
+
+  /** Seçili kümeyi TAMAMEN değiştirir (mevcut etiketleri siler, yenilerini ekler). */
+  setLocations(businessId: string, locationIds: string[]): Observable<void> {
+    return this.client.remove('business_locations', { business_id: `eq.${businessId}` }).pipe(
+      switchMap(() =>
+        locationIds.length
+          ? this.client.insert(
+              'business_locations',
+              locationIds.map((location_id) => ({ business_id: businessId, location_id })),
+            )
+          : of(undefined),
+      ),
+    );
+  }
+
+  setServices(businessId: string, serviceIds: string[]): Observable<void> {
+    return this.client.remove('business_services', { business_id: `eq.${businessId}` }).pipe(
+      switchMap(() =>
+        serviceIds.length
+          ? this.client.insert(
+              'business_services',
+              serviceIds.map((service_id) => ({ business_id: businessId, service_id })),
+            )
+          : of(undefined),
+      ),
     );
   }
 }

@@ -58,9 +58,23 @@ describe('AdminBusinessDetailPage', () => {
 
   afterEach(() => http.verify());
 
+  /** İşletme detayı artık lokasyon/hizmet listelerini ve mevcut etiketleri de çeker. */
+  function flushTagRequests(opts?: {
+    locations?: unknown[];
+    services?: unknown[];
+    businessLocations?: unknown[];
+    businessServices?: unknown[];
+  }) {
+    http.expectOne((r) => r.url.includes('/rest/v1/locations')).flush(opts?.locations ?? []);
+    http.expectOne((r) => r.url.includes('/rest/v1/services')).flush(opts?.services ?? []);
+    http.expectOne((r) => r.url.includes('/rest/v1/business_locations')).flush(opts?.businessLocations ?? []);
+    http.expectOne((r) => r.url.includes('/rest/v1/business_services')).flush(opts?.businessServices ?? []);
+  }
+
   it('işletme bulunamazsa mesaj gösterir', async () => {
     const fixture = await setup();
     http.expectOne((r) => r.url.includes('/rest/v1/businesses')).flush([]);
+    flushTagRequests();
     await tick();
 
     expect(fixture.nativeElement.textContent).toContain('İşletme bulunamadı');
@@ -69,6 +83,7 @@ describe('AdminBusinessDetailPage', () => {
   it('pending işletmede Onayla ve Reddet butonlarını gösterir', async () => {
     const fixture = await setup();
     http.expectOne((r) => r.url.includes('/rest/v1/businesses')).flush([BUSINESS_ROW]);
+    flushTagRequests();
     await tick();
 
     const el = fixture.nativeElement as HTMLElement;
@@ -80,6 +95,7 @@ describe('AdminBusinessDetailPage', () => {
   it('Onayla ve Yayınla tıklanınca status=active PATCH edilir', async () => {
     const fixture = await setup();
     http.expectOne((r) => r.url.includes('/rest/v1/businesses')).flush([BUSINESS_ROW]);
+    flushTagRequests();
     await tick();
 
     const el = fixture.nativeElement as HTMLElement;
@@ -104,6 +120,7 @@ describe('AdminBusinessDetailPage', () => {
     http
       .expectOne((r) => r.url.includes('/rest/v1/businesses'))
       .flush([{ ...BUSINESS_ROW, possible_duplicate_of: 'biz-2' }]);
+    flushTagRequests();
     await tick();
 
     const el = fixture.nativeElement as HTMLElement;
@@ -126,6 +143,7 @@ describe('AdminBusinessDetailPage', () => {
   it('işletme adı boşken kaydetmeye çalışırsa istek atılmadan hata gösterir', async () => {
     const fixture = await setup();
     http.expectOne((r) => r.url.includes('/rest/v1/businesses')).flush([BUSINESS_ROW]);
+    flushTagRequests();
     await tick();
 
     const el = fixture.nativeElement as HTMLElement;
@@ -144,6 +162,7 @@ describe('AdminBusinessDetailPage', () => {
   it('formu kaydedince plan dahil tüm alanlar PATCH edilir', async () => {
     const fixture = await setup();
     http.expectOne((r) => r.url.includes('/rest/v1/businesses')).flush([BUSINESS_ROW]);
+    flushTagRequests();
     await tick();
 
     const el = fixture.nativeElement as HTMLElement;
@@ -169,5 +188,74 @@ describe('AdminBusinessDetailPage', () => {
     await tick();
 
     expect(el.textContent).toContain('Kaydedildi.');
+  });
+
+  it('mevcut bölge/hizmet etiketleri işaretli gelir; yeni bölge seçip kaydedince DELETE+POST gönderir', async () => {
+    const fixture = await setup();
+    http.expectOne((r) => r.url.includes('/rest/v1/businesses')).flush([BUSINESS_ROW]);
+    flushTagRequests({
+      locations: [
+        { id: 'loc-1', slug: 'merkez', name: 'Merkez' },
+        { id: 'loc-2', slug: 'tavsanli', name: 'Tavşanlı' },
+      ],
+      services: [{ id: 'svc-1', slug: '724-taksi', name: '7/24 Taksi' }],
+      businessLocations: [{ location_id: 'loc-1' }],
+    });
+    await tick();
+
+    const el = fixture.nativeElement as HTMLElement;
+    const lists = el.querySelectorAll('.checkbox-list');
+    const locationChecks = Array.from(
+      (lists[0] as HTMLElement).querySelectorAll('input[type="checkbox"]'),
+    ) as HTMLInputElement[];
+    const [locOne, locTwo] = locationChecks;
+    if (!locOne || !locTwo) throw new Error('beklenen checkbox sayısı bulunamadı');
+    expect(locOne.checked).toBe(true); // loc-1 zaten etiketli
+    expect(locTwo.checked).toBe(false);
+
+    locTwo.click();
+    fixture.detectChanges();
+
+    const saveBtn = Array.from(el.querySelectorAll('button')).find(
+      (b) => b.textContent?.trim() === 'Bölgeleri Kaydet',
+    ) as HTMLButtonElement;
+    saveBtn.click();
+
+    const del = http.expectOne(
+      (r) => r.url.includes('/rest/v1/business_locations') && r.method === 'DELETE',
+    );
+    expect(del.request.params.get('business_id')).toBe('eq.biz-1');
+    del.flush(null);
+
+    const post = http.expectOne(
+      (r) => r.url.includes('/rest/v1/business_locations') && r.method === 'POST',
+    );
+    expect(post.request.body).toEqual([
+      { business_id: 'biz-1', location_id: 'loc-1' },
+      { business_id: 'biz-1', location_id: 'loc-2' },
+    ]);
+    post.flush(null);
+    await tick();
+
+    expect(el.textContent).toContain('Kaydedildi.');
+  });
+
+  it('enlem yalnızca girilip boylam boş bırakılırsa kaydetmez, hata gösterir', async () => {
+    const fixture = await setup();
+    http.expectOne((r) => r.url.includes('/rest/v1/businesses')).flush([BUSINESS_ROW]);
+    flushTagRequests();
+    await tick();
+
+    const el = fixture.nativeElement as HTMLElement;
+    const latInput = el.querySelector('#edit-lat') as HTMLInputElement;
+    latInput.value = '39.5';
+    latInput.dispatchEvent(new Event('input'));
+    fixture.detectChanges();
+
+    el.querySelector('form')?.dispatchEvent(new Event('submit', { cancelable: true }));
+    fixture.detectChanges();
+
+    expect(el.textContent).toContain('Enlem ve boylam birlikte girilmeli');
+    http.expectNone((r) => r.method === 'PATCH');
   });
 });
