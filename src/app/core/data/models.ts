@@ -22,6 +22,7 @@ export type BusinessHours = Tables['business_hours']['Row'];
 export type AnalyticsDaily = Tables['analytics_daily']['Row'];
 export type Claim = Tables['claims']['Row'];
 export type ClaimInsert = Tables['claims']['Insert'];
+export type BusinessMediaInsert = Tables['business_media']['Insert'];
 export type LandingPageStats = Views['landing_page_stats']['Row'];
 export type NearbyBusinessRow = Functions['nearby_businesses']['Returns'][number];
 
@@ -163,3 +164,9 @@ export type ClaimRow = Pick<
   Claim,
   'id' | 'business_id' | 'status' | 'verification_method' | 'submitted_at' | 'reviewer_note'
 >;
+
+/** `submit_business` RPC'sinin girdisi (Faz 8, §26). */
+export type BusinessSubmitInput = Functions['submit_business']['Args'];
+
+/** `submit_business` RPC'sinin döndürdüğü tek satır. */
+export type BusinessSubmitResult = Functions['submit_business']['Returns'][number];

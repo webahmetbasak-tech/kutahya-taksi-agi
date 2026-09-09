@@ -115,6 +115,19 @@ export class PostgrestClient {
   }
 
   /**
+   * Yazma amaçlı RPC çağrısı (`POST /rpc/<fn>`) — `volatile`/`SECURITY DEFINER`
+   * fonksiyonlar için (ör. `submit_business`). `rpc()`'ten farkı: TransferState'e
+   * YAZILMAZ/OKUNMAZ — bir yazma isteğinin cache'lenip tekrar oynatılması ya da
+   * ikinci bir SSR isteğiyle yanlışlıkla "tekrarlanmış" gibi görünmesi kabul
+   * edilemez.
+   */
+  mutateRpc<T>(fn: string, args: object): Observable<T[]> {
+    return this.http.post<T[]>(`${this.baseUrl}/rpc/${fn}`, args, {
+      headers: { ...this.headers, 'Content-Type': 'application/json' },
+    });
+  }
+
+  /**
    * Sunucuda: isteği yapar, sonucu `TransferState`'e yazar.
    * Tarayıcıda: `TransferState`'te varsa onu kullanır ve SİLER (yalnızca ilk
    * hydration okuması içindir; sonraki navigasyonlar taze veri ister), yoksa

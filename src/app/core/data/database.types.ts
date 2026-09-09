@@ -280,6 +280,7 @@ export type Database = {
           phone_display: string | null;
           phone_e164: string | null;
           plan: Database['public']['Enums']['business_plan'];
+          possible_duplicate_of: string | null;
           slug: string;
           source_note: string | null;
           source_type: Database['public']['Enums']['source_type'];
@@ -311,6 +312,7 @@ export type Database = {
           phone_display?: string | null;
           phone_e164?: string | null;
           plan?: Database['public']['Enums']['business_plan'];
+          possible_duplicate_of?: string | null;
           slug: string;
           source_note?: string | null;
           source_type: Database['public']['Enums']['source_type'];
@@ -342,6 +344,7 @@ export type Database = {
           phone_display?: string | null;
           phone_e164?: string | null;
           plan?: Database['public']['Enums']['business_plan'];
+          possible_duplicate_of?: string | null;
           slug?: string;
           source_note?: string | null;
           source_type?: Database['public']['Enums']['source_type'];
@@ -365,6 +368,13 @@ export type Database = {
             columns: ['owner_id'];
             isOneToOne: false;
             referencedRelation: 'profiles';
+            referencedColumns: ['id'];
+          },
+          {
+            foreignKeyName: 'businesses_possible_duplicate_of_fkey';
+            columns: ['possible_duplicate_of'];
+            isOneToOne: false;
+            referencedRelation: 'businesses';
             referencedColumns: ['id'];
           },
           {
@@ -764,6 +774,24 @@ export type Database = {
         };
       };
       rollup_analytics_daily: { Args: { target_day?: string }; Returns: number };
+      slugify: { Args: { value: string }; Returns: string };
+      submit_business: {
+        Args: {
+          p_address?: string;
+          p_business_name: string;
+          p_description?: string;
+          p_district?: string;
+          p_neighborhood?: string;
+          p_phone?: string;
+          p_website?: string;
+          p_whatsapp?: string;
+        };
+        Returns: {
+          id: string;
+          possible_duplicate: boolean;
+          slug: string;
+        }[];
+      };
     };
     Enums: {
       analytics_event_type:

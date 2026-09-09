@@ -244,6 +244,11 @@
   color: var(--c-info);
 }
 
+.form-banner--warning {
+  background-color: var(--c-warning-soft);
+  color: var(--c-warning);
+}
+
 /* --- Chip (entity ilişkisi linkleri: bölge/hizmet, §42) --------------------- */
 
 .chip-row {

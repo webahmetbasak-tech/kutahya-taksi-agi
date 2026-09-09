@@ -88,6 +88,15 @@ export class AuthService {
     return this.client;
   }
 
+  /**
+   * `BusinessMediaService` (Faz 8) için: Storage çağrılarının oturum JWT'sini
+   * taşıması için AYNI `SupabaseClient` örneği paylaşılır — ikinci bir
+   * `createClient()` ayrı bir oturum durumu/dinleyici anlamına gelirdi.
+   */
+  storageClient(): SupabaseClient['storage'] {
+    return this.getClient().storage;
+  }
+
   private applySession(session: Session | null): void {
     this.tokenStore.set(session?.access_token ?? null);
     this._user.set(session ? { id: session.user.id, email: session.user.email ?? null } : null);

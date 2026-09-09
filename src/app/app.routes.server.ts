@@ -63,9 +63,12 @@ export const serverRoutes: ServerRoute[] = [
     headers: { 'Cache-Control': PUBLIC_CACHE },
   },
   {
+    // Faz 8: oturum gerektiren gerçek bir form (Faz 1'deki statik "yakında"
+    // iskeletinin aksine) — 'sahiplen'/'panel' ile aynı nedenle sunucuda
+    // render edilmez/cache'lenmez.
     path: 'isletme-ekle',
-    renderMode: RenderMode.Server,
-    headers: { 'Cache-Control': STATIC_CACHE },
+    renderMode: RenderMode.Client,
+    headers: { 'Cache-Control': 'private, no-store' },
   },
   {
     path: 'hakkinda',

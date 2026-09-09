@@ -28,6 +28,18 @@ vi.mock('@supabase/supabase-js', () => ({
   createClient: (...args: unknown[]) => createClient(...args),
 }));
 
+/**
+ * `getSession().then(...)`in mikro görev kuyruğuna gerçekten yerleşmesini
+ * bekler. İki sabit `await Promise.resolve()` normalde yeterliydi, ancak bu
+ * dosya paylaşımlı bir worker'da BAŞKA test dosyalarının mikro görevleriyle
+ * aynı kuyruğa düşebiliyor (`isolate:false` havuzu) — sabit "iki tık" varsayımı
+ * o durumda kırılgan. Bir makro görev (`setTimeout`) tüm bekleyen mikro
+ * görevleri, kaynağı ne olursa olsun, tüketmeyi garanti eder.
+ */
+function flush(): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, 0));
+}
+
 function session(overrides: Partial<{ access_token: string; id: string; email: string }> = {}) {
   return {
     access_token: overrides.access_token ?? 'jwt-abc',
@@ -67,8 +79,7 @@ describe('AuthService', () => {
 
   it('tarayıcıda başlangıçta oturum yoksa ready true, user null olur', async () => {
     const auth = setup();
-    await Promise.resolve();
-    await Promise.resolve();
+    await flush();
 
     expect(auth.ready()).toBe(true);
     expect(auth.user()).toBeNull();
@@ -78,8 +89,7 @@ describe('AuthService', () => {
   it('mevcut bir oturum varsa user doldurulur ve AuthTokenStore güncellenir', async () => {
     getSession.mockResolvedValue({ data: { session: session() }, error: null });
     const auth = setup();
-    await Promise.resolve();
-    await Promise.resolve();
+    await flush();
 
     expect(auth.user()).toEqual({ id: 'user-1', email: 'sahip@example.test' });
     expect(TestBed.inject(AuthTokenStore).accessToken()).toBe('jwt-abc');
@@ -87,8 +97,7 @@ describe('AuthService', () => {
 
   it('onAuthStateChange tetiklenince user ve token güncellenir (giriş)', async () => {
     const auth = setup();
-    await Promise.resolve();
-    await Promise.resolve();
+    await flush();
 
     const callback = onAuthStateChange.mock.calls[0]?.[0] as (
       event: string,
@@ -103,8 +112,7 @@ describe('AuthService', () => {
   it('onAuthStateChange null oturum verince (çıkış) user ve token temizlenir', async () => {
     getSession.mockResolvedValue({ data: { session: session() }, error: null });
     const auth = setup();
-    await Promise.resolve();
-    await Promise.resolve();
+    await flush();
 
     const callback = onAuthStateChange.mock.calls[0]?.[0] as (
       event: string,
