@@ -34,8 +34,11 @@ import { SeoService } from '@core/seo/seo.service';
       </video>
       <div class="hero__scrim"></div>
       <div class="container hero__inner">
-        <h1 class="hero__title">Kütahya'da Taksi Bul</h1>
-        <p class="hero__lead">Kütahya'daki taksi işletmelerini tek yerde keşfedin.</p>
+        <h1 class="hero__title">Kütahya'da En Yakın Taksi</h1>
+        <p class="hero__lead">
+          Kütahya Merkez ve tüm ilçelerdeki taksi duraklarını keşfedin — telefon ve WhatsApp ile
+          tek tıkla arayın.
+        </p>
       </div>
     </section>
 
@@ -209,9 +212,9 @@ export class HomePage {
 
   constructor() {
     this.seo.setPage({
-      title: "Kütahya Taksi Ağı — Kütahya'da Taksi Bul",
+      title: 'En Yakın Taksi — Kütahya Taksi Ağı',
       description:
-        "Kütahya'daki taksi işletmelerini tek yerde keşfedin. Telefon, WhatsApp ve yol tarifi tek tıkla.",
+        'Kütahya Merkez ve ilçelerindeki taksi duraklarını ve işletmelerini tek yerde bulun. Telefon ve WhatsApp ile tek tıkla arayın.',
       path: '/',
     });
   }
