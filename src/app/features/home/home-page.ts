@@ -1,20 +1,20 @@
 import { Component, computed, inject, signal } from '@angular/core';
 import { rxResource } from '@angular/core/rxjs-interop';
-import { Router, RouterLink } from '@angular/router';
+import { RouterLink } from '@angular/router';
 import { BusinessRepository } from '@core/data/business.repository';
 import { LocationRepository } from '@core/data/location.repository';
 import { ServiceRepository } from '@core/data/service.repository';
-import { GeolocationService } from '@core/geo/geolocation.service';
 import { BusinessList } from '@shared/components/business-list';
 import { Skeleton } from '@shared/ui/skeleton';
 import { SeoService } from '@core/seo/seo.service';
-import { AnalyticsService } from '@core/analytics/analytics.service';
 
 /**
  * Ana sayfa (§21, §22).
  *
- * Bölüm sırası: Hero → Yakınımdaki Taksiler → Popüler Bölgeler → Hizmetler →
- * İşletmeler → İşletme sahipleri CTA'sı. Prompt §22'deki "7/24 taksiler",
+ * Bölüm sırası: Video Hero → Popüler Bölgeler → Hizmetler → İşletmeler →
+ * İşletme sahipleri CTA'sı. "Yakınımdaki Taksiler" (§49, konum izni tabanlı)
+ * BİLEREK kaldırıldı — bölge/hizmet filtresi aynı ihtiyacı sayfa değişmeden
+ * karşılıyor, konum izni istemeden. Prompt §22'deki "7/24 taksiler",
  * "Havalimanı transferi", "Şehirlerarası taksi" bölümleri BİLİNÇLİ OLARAK ayrı
  * ayrı gösterilmiyor: şu an 0 aktif işletme varken üç neredeyse özdeş boş
  * bölüm göstermek gerçek içerik değil doldurma olurdu (§75 ruhuna aykırı).
@@ -29,34 +29,15 @@ import { AnalyticsService } from '@core/analytics/analytics.service';
   imports: [RouterLink, BusinessList, Skeleton],
   template: `
     <section class="hero">
+      <video class="hero__video" autoplay muted loop playsinline poster="/hero.jpg">
+        <source src="/hero.mp4" type="video/mp4" />
+      </video>
+      <div class="hero__scrim"></div>
       <div class="container hero__inner">
         <h1 class="hero__title">Kütahya'da Taksi Bul</h1>
         <p class="hero__lead">Kütahya'daki taksi işletmelerini tek yerde keşfedin.</p>
-        <div class="hero__actions">
-          <button type="button" class="btn btn--primary" (click)="findNearby()">
-            📍 Yakınımdaki Taksileri Göster
-          </button>
-          <a routerLink="/taksi" class="btn btn--secondary">Tüm Taksileri Gör</a>
-        </div>
-        @if (nearbyMessage(); as msg) {
-          <p class="hero__nearby-note muted">{{ msg }}</p>
-        }
       </div>
     </section>
-
-    @if (nearbyRequested()) {
-      <section class="container section" aria-labelledby="nearby-heading">
-        <h2 id="nearby-heading" class="section-title">Yakınımdaki Taksiler</h2>
-        <app-business-list
-          [businesses]="nearby.value() ?? []"
-          [loading]="nearby.isLoading()"
-          emptyTitle="Yakınınızda henüz yayınlanmış işletme yok"
-          emptyDescription="Doğrulanmamış bilgi yayınlamıyoruz. Tüm taksileri listeden görebilirsiniz."
-        >
-          <a routerLink="/taksi" class="btn btn--secondary">Tüm Taksileri Gör</a>
-        </app-business-list>
-      </section>
-    }
 
     <section class="container section" aria-labelledby="districts-heading">
       <h2 id="districts-heading" class="section-title">Popüler Taksi Bölgeleri</h2>
@@ -136,11 +117,42 @@ import { AnalyticsService } from '@core/analytics/analytics.service';
   `,
   styles: `
     .hero {
-      background: linear-gradient(180deg, var(--c-brand-soft), var(--c-bg));
-      border-bottom: 1px solid var(--c-border);
+      position: relative;
+      overflow: hidden;
+      min-height: 22rem;
+      display: flex;
+      align-items: flex-end;
+      background-color: var(--c-text); /* video/poster yüklenene kadarki koyu zemin */
+    }
+
+    .hero__video {
+      position: absolute;
+      inset: 0;
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+    }
+
+    .hero__scrim {
+      position: absolute;
+      inset: 0;
+      background: linear-gradient(180deg, rgb(0 0 0 / 25%), rgb(0 0 0 / 65%));
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+      .hero__video {
+        display: none;
+      }
+
+      .hero {
+        background-image: url('/hero.jpg');
+        background-size: cover;
+        background-position: center;
+      }
     }
 
     .hero__inner {
+      position: relative;
       padding-block: var(--sp-12) var(--sp-10);
       max-width: 42rem;
     }
@@ -148,24 +160,13 @@ import { AnalyticsService } from '@core/analytics/analytics.service';
     .hero__title {
       font-size: var(--fs-3xl);
       letter-spacing: -0.02em;
+      color: var(--c-text-inverse);
     }
 
     .hero__lead {
       margin-block-start: var(--sp-3);
       font-size: var(--fs-lg);
-      color: var(--c-text-muted);
-    }
-
-    .hero__actions {
-      display: flex;
-      flex-wrap: wrap;
-      gap: var(--sp-3);
-      margin-block-start: var(--sp-6);
-    }
-
-    .hero__nearby-note {
-      margin-block-start: var(--sp-3);
-      font-size: var(--fs-sm);
+      color: var(--c-text-inverse);
     }
 
     .section {
@@ -204,10 +205,7 @@ export class HomePage {
   private readonly businessRepo = inject(BusinessRepository);
   private readonly locationRepo = inject(LocationRepository);
   private readonly serviceRepo = inject(ServiceRepository);
-  private readonly geolocation = inject(GeolocationService);
-  private readonly router = inject(Router);
   private readonly seo = inject(SeoService);
-  private readonly analytics = inject(AnalyticsService);
 
   constructor() {
     this.seo.setPage({
@@ -308,44 +306,5 @@ export class HomePage {
 
   protected selectService(serviceId: string): void {
     this.selectedServiceId.update((current) => (current === serviceId ? undefined : serviceId));
-  }
-
-  protected readonly nearbyRequested = signal(false);
-  private readonly nearbyCoords = signal<{ latitude: number; longitude: number } | undefined>(
-    undefined,
-  );
-  protected readonly nearbyMessage = signal<string | null>(null);
-
-  protected readonly nearby = rxResource({
-    params: () => this.nearbyCoords(),
-    stream: ({ params }) => this.businessRepo.nearby(params.latitude, params.longitude),
-  });
-
-  /**
-   * Konum izni ister; reddedilirse veya alınamazsa Kütahya Merkez'e düşer (§49).
-   * Site, izin verilmese de çalışmaya devam eder.
-   */
-  protected async findNearby(): Promise<void> {
-    this.nearbyRequested.set(true);
-    const coords = await this.geolocation.requestLocation();
-
-    if (coords) {
-      this.nearbyMessage.set(null);
-      this.nearbyCoords.set(coords);
-      this.analytics.track({
-        eventType: 'search_performed',
-        metadata: { query_type: 'nearby', geolocation: 'granted' },
-      });
-    } else {
-      this.nearbyMessage.set('Konumunuz alınamadı — Kütahya Merkez baz alınıyor.');
-      // Kütahya Merkez koordinatı (bkz. supabase/migrations — OSM doğrulamalı).
-      this.nearbyCoords.set({ latitude: 39.41991, longitude: 29.98579 });
-      this.analytics.track({
-        eventType: 'search_performed',
-        metadata: { query_type: 'nearby', geolocation: 'fallback' },
-      });
-    }
-
-    void this.router.navigate([], { fragment: 'nearby-heading' });
   }
 }
