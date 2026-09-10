@@ -8,6 +8,7 @@
     "start": "ng serve",
     "prebuild": "npm run env:generate",
     "build": "ng build",
+    "postbuild": "node scripts/remove-csr-fallback.mjs",
     "watch": "ng build --watch --configuration development",
     "pretest": "npm run env:generate",
     "test": "ng test",
