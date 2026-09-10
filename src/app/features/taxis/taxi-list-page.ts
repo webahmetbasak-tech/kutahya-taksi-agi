@@ -25,8 +25,8 @@ import { absoluteUrl } from '@env';
   imports: [RouterLink, BusinessList],
   template: `
     <div class="container page">
-      <h1 class="page-title">Kütahya Taksileri</h1>
-      <p class="lead">Kütahya'daki taksi işletmeleri. Her kayıt yayınlanmadan önce doğrulanır.</p>
+      <h1 class="page-title">Kütahya Taksileri — En Yakın Taksi Listesi</h1>
+      <p class="lead">Kütahya'daki taksi işletmelerinin tam listesi. Her kayıt yayınlanmadan önce doğrulanır.</p>
 
       <app-business-list
         [businesses]="businesses.value() ?? []"
@@ -62,7 +62,7 @@ export class TaxiListPage {
     this.seo.setPage({
       title: 'Kütahya Taksileri — Kütahya Taksi Ağı',
       description:
-        "Kütahya'daki doğrulanmış taksi işletmelerinin tam listesi. Telefon, WhatsApp ve yol tarifi tek tıkla.",
+        "Kütahya'da en yakın taksiyi arıyorsanız doğru yerdesiniz: tüm doğrulanmış taksi işletmelerinin tam listesi. Telefon, WhatsApp ve yol tarifi tek tıkla.",
       path: '/taksi',
     });
 

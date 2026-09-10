@@ -214,7 +214,7 @@ export class HomePage {
     this.seo.setPage({
       title: 'En Yakın Taksi — Kütahya Taksi Ağı',
       description:
-        'Kütahya Merkez ve ilçelerindeki taksi duraklarını ve işletmelerini tek yerde bulun. Telefon ve WhatsApp ile tek tıkla arayın.',
+        "Kütahya'da en yakın taksiyi bulun: Kütahya Merkez taksi durakları ve tüm ilçelerdeki işletmeleri tek yerde keşfedin. Telefon ve WhatsApp ile tek tıkla arayın.",
       path: '/',
     });
   }

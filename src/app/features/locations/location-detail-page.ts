@@ -33,7 +33,9 @@ import { absoluteUrl } from '@env';
         <app-breadcrumb [items]="[{ label: 'Bölgeler', path: '/bolge' }, { label: loc.name }]" />
 
         <h1 class="page-title">{{ loc.name }} Taksileri</h1>
-        <p class="lead">{{ loc.name }} bölgesinde hizmet veren taksi işletmeleri.</p>
+        <p class="lead">
+          {{ loc.name }} taksi ihtiyacınız için bölgede hizmet veren, doğrulanmış işletmeler.
+        </p>
 
         <app-business-list
           [businesses]="businesses.value() ?? []"
@@ -116,7 +118,7 @@ export class LocationDetailPage {
       const path = `/bolge/${loc.slug}`;
       this.seo.setPage({
         title: `${loc.name} Taksileri — Kütahya Taksi Ağı`,
-        description: `${loc.name} bölgesinde hizmet veren, doğrulanmış taksi işletmeleri.`,
+        description: `${loc.name} taksi ihtiyacınız için bölgede hizmet veren, doğrulanmış işletmeler.`,
         path,
       });
 
