@@ -29,7 +29,7 @@ import { SeoService } from '@core/seo/seo.service';
   imports: [RouterLink, BusinessList, Skeleton],
   template: `
     <section class="hero">
-      <video class="hero__video" autoplay muted loop playsinline poster="/hero.jpg">
+      <video class="hero__video" autoplay muted loop playsinline poster="/hero-poster.jpg">
         <source src="/hero.mp4" type="video/mp4" />
       </video>
       <div class="hero__scrim"></div>
@@ -145,7 +145,7 @@ import { SeoService } from '@core/seo/seo.service';
       }
 
       .hero {
-        background-image: url('/hero.jpg');
+        background-image: url('/hero-poster.jpg');
         background-size: cover;
         background-position: center;
       }
